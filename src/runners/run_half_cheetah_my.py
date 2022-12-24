@@ -9,11 +9,12 @@ from torch.utils.tensorboard import SummaryWriter
 
 from src.algos.sac import SAC
 from src.utils.replay_memory import ReplayMemory
+from src.environments.mujoco.half_cheetah_my import HalfCheetahEnv
 
 
 def parse_args():
     parser = argparse.ArgumentParser(description='PyTorch Soft Actor-Critic Args')
-    parser.add_argument('--env-name', default="HalfCheetah-v3",
+    parser.add_argument('--env-name', default="HalfCheetah-v2",
                         help='Mujoco Gym environment (default: HalfCheetah-v2)')
     parser.add_argument('--policy', default="Gaussian",
                         help='Policy Type: Gaussian | Deterministic (default: Gaussian)')
@@ -57,7 +58,7 @@ def parse_args():
 def run_agent_and_environment(arguments):
     # Environment
     # env = NormalizedActions(gym.make(args.env_name))
-    env = gym.make(arguments.env_name)
+    env = HalfCheetahEnv()
     env.seed(arguments.seed)
     env.action_space.seed(arguments.seed)
 
