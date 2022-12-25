@@ -3,7 +3,7 @@ import numpy as np
 import torch
 from gym.envs.mujoco import HalfCheetahEnv
 
-from .helpers import reset_env, get_latent_for_policy
+from .helpers import reset_env, get_latent_for_policy, env_step
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
