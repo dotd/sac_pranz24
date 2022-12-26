@@ -8,6 +8,8 @@ import torch
 from torch.utils.tensorboard import SummaryWriter
 
 from src.algos.sac import SAC
+from src.environments.wrappers.non_stationary_cheetah_windvel_wrapper import NonStationaryCheetahWindVelEnv
+from src.environments.wrappers.stationary_cheetah_windvel_wrapper import StationaryCheetahWindVelEnv
 from src.utils.replay_memory import ReplayMemory
 
 
@@ -46,7 +48,7 @@ def parse_args():
                         help='Value target update per no. of updates per step (default: 1)')
     parser.add_argument('--replay_size', type=int, default=1000000, metavar='N',
                         help='size of replay buffer (default: 10000000)')
-    parser.add_argument('--cuda', action="store_true",
+    parser.add_argument('--cuda', type=bool, default=True,
                         help='run on CUDA (default: False)')
     parser.add_argument('--save_episodes', type=int, default=2, metavar='N',
                         help='maximum number of steps (default: 1000000)')
@@ -58,6 +60,11 @@ def run_agent_and_environment(arguments):
     # Environment
     # env = NormalizedActions(gym.make(args.env_name))
     env = gym.make(arguments.env_name)
+
+    env = NonStationaryCheetahWindVelEnv(env=env, change_freq=20000, renewal=True)
+    #env = StationaryCheetahWindVelEnv(env=env)
+
+    env._max_episode_steps = 100
     env.seed(arguments.seed)
     env.action_space.seed(arguments.seed)
 
