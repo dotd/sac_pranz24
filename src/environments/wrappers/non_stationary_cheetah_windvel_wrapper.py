@@ -5,6 +5,7 @@ import numpy as np
 from gym import spaces
 
 # Same environment as in LILAC for Half cheetah Windvel
+from torch.utils.tensorboard import SummaryWriter
 
 
 def change_increments(change_freq):
@@ -13,14 +14,18 @@ def change_increments(change_freq):
 
 class NonStationaryCheetahWindVelEnv(Wrapper):
 
-    def __init__(self, env, change_freq, renewal=True, apply_change=True):
+    def __init__(self, env, change_freq, renewal, summary_writer: SummaryWriter):
 
         super(NonStationaryCheetahWindVelEnv, self).__init__(env)
+
+        self.summary_writer = summary_writer
 
         self.change_freq = change_freq
         self.next_change = change_increments(self.change_freq)  # for renewal process only
         self.action_dim = self.env.action_space.shape[0]
         self.counter = 0
+
+        self._max_episode_steps = 1000
 
         self.low_target_vel: float = 0.
         self.high_target_vel: float = 3.
@@ -37,8 +42,6 @@ class NonStationaryCheetahWindVelEnv(Wrapper):
                                      dtype=np.float32)
         self.ep_length = 0
         self.cum_rwd = 0
-        self.apply_change = apply_change
-        self.env_writer = None
         self.renewal = renewal  # whether or not to generate random time changes
 
     @property
@@ -59,7 +62,7 @@ class NonStationaryCheetahWindVelEnv(Wrapper):
 
     def step(self, action):
 
-        if self.counter - self.next_change == 0 and self.counter > 0 and self.apply_change and self.renewal:
+        if self.counter - self.next_change == 0 and self.counter > 0 and self.renewal:
             jump = change_increments(self.change_freq)
             if jump == 0:
                 jump += 1
@@ -68,9 +71,15 @@ class NonStationaryCheetahWindVelEnv(Wrapper):
             self.set_task(task=None)
             print("CHANGED TO TASK {} AT STEP {}!".format(self.current_task, self.counter))
 
-        if self.counter % self.change_freq == 0 and self.counter > 0 and self.apply_change and not self.renewal:
+            self.summary_writer.add_scalar(tag='env/target_velocity', scalar_value=self.task[0], global_step=self.counter)
+            self.summary_writer.add_scalar(tag='env/wind_friction', scalar_value=self.task[1], global_step=self.counter)
+
+        if self.counter % self.change_freq == 0 and self.counter > 0 and not self.renewal:
             self.set_task(task=None)
             print("CHANGED TO TASK {} AT STEP {}!".format(self.current_task, self.counter))
+
+            self.summary_writer.add_scalar(tag='env/target_velocity', scalar_value=self.task[0], global_step=self.counter)
+            self.summary_writer.add_scalar(tag='env/wind_friction', scalar_value=self.task[1], global_step=self.counter)
 
         curr_target_vel = self.task[0]
         curr_wind_frec = self.task[1]

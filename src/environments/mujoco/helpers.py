@@ -1,14 +1,14 @@
 import torch
 from torch.nn import functional as F
 
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+# device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 '''
 did1tv: in helpers moved most of the helping functions
 '''
 
 
-def reset_env(env, args, indices=None, state=None):
+def reset_env(env, args, indices=None, state=None, device=None):
     """ env can be many environments or just one """
     # reset all environments
     if (indices is None) or (len(indices) == args.num_processes):
@@ -32,7 +32,7 @@ def squash_action(action, args):
         return action
 
 
-def env_step(env, action, args):
+def env_step(env, action, device, args):
     act = squash_action(action.detach(), args)
     next_obs, reward, done, infos = env.step(act)
 
@@ -72,7 +72,7 @@ def get_latent_for_policy(args, latent_sample=None, latent_mean=None, latent_log
     return latent
 
 
-def env_step(env, action, args):
+def env_step(env, action, device, args):
     act = squash_action(action.detach(), args)
     next_obs, reward, done, infos = env.step(act)
 

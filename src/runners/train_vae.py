@@ -56,22 +56,46 @@ def parse_args():
     return args0
 
 
-def run_agent_and_environment(arguments):
+def collect_rollouts(env, arguments):
+
+    # Training Loop
+    total_steps = 0
+
+    while total_steps < arguments.num_steps:
+
+        episode_reward = 0
+        episode_steps = 0
+        done = False
+        state = env.reset()
+
+        while not done:
+            action = env.action_space.sample()  # Sample random action
+
+            next_state, reward, done, _ = env.step(action)  # Step
+            episode_steps += 1
+            total_steps += 1
+            episode_reward += reward
+
+            mask = 1 if episode_steps == env._max_episode_steps else float(not done)
+            replay_memory.push(state, action, reward, next_state, mask)  # Append transition to memory
+            state = next_state
+
+
+
+def main(arguments):
 
     # Tesnorboard
-    writer = SummaryWriter(
-        'runs/{}_SAC_{}_{}_{}'.format(datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S"), arguments.env_name,
-                                      arguments.policy, "autotune" if arguments.automatic_entropy_tuning else ""))
+    writer = SummaryWriter(f'runs/'f'{datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}_VAE')
 
     # Environment
     max_episode_steps = 100
     writer.add_scalar(tag='env/max_env_steps', scalar_value=max_episode_steps)
 
-    env = gym.make(arguments.env_name)
+    env = gym.make('HalfCheetah-v3')
     env._max_episode_steps = max_episode_steps
 
-    env = NonStationaryCheetahWindVelEnv(env=env, change_freq=20000, renewal=True, summary_writer=writer)
-    # env = StationaryCheetahWindVelEnv(env=env, summary_writer=writer)
+    # env = NonStationaryCheetahWindVelEnv(env=env, change_freq=20000, renewal=True, summary_writer=writer)
+    env = StationaryCheetahWindVelEnv(env=env, summary_writer=writer)
     env._max_episode_steps = max_episode_steps
 
     env.seed(arguments.seed)
@@ -80,90 +104,18 @@ def run_agent_and_environment(arguments):
     torch.manual_seed(arguments.seed)
     np.random.seed(arguments.seed)
 
-    # Agent
-    agent = SAC(env.observation_space.shape[0], env.action_space, arguments)
-
     # Memory
     replay_memory = ReplayMemory(arguments.replay_size, arguments.seed)
 
-    # Training Loop
-    total_steps = 0
-    updates = 0
 
-    for i_episode in itertools.count(1):
-        episode_reward = 0
-        episode_steps = 0
-        done = False
-        state = env.reset()
 
-        while not done:
-            if arguments.start_steps > total_steps:
-                action = env.action_space.sample()  # Sample random action
-            else:
-                action = agent.select_action(state)  # Sample action from policy
 
-            if len(replay_memory) > arguments.batch_size:
-                # Number of updates per step in environment
-                for i in range(arguments.updates_per_step):
-                    # Update parameters of all the networks
-                    critic_1_loss, critic_2_loss, policy_loss, ent_loss, alpha = agent.update_parameters(replay_memory,
-                                                                                                         arguments.batch_size,
-                                                                                                         updates)
 
-                    writer.add_scalar('loss/critic_1', critic_1_loss, updates)
-                    writer.add_scalar('loss/critic_2', critic_2_loss, updates)
-                    writer.add_scalar('loss/policy', policy_loss, updates)
-                    writer.add_scalar('loss/entropy_loss', ent_loss, updates)
-                    writer.add_scalar('entropy_temprature/alpha', alpha, updates)
-                    updates += 1
-
-            next_state, reward, done, _ = env.step(action)  # Step
-            episode_steps += 1
-            total_steps += 1
-            episode_reward += reward
-
-            # Ignore the "done" signal if it comes from hitting the time horizon.
-            # (https://github.com/openai/spinningup/blob/master/spinup/algos/sac/sac.py)
-            mask = 1 if episode_steps == env._max_episode_steps else float(not done)
-
-            replay_memory.push(state, action, reward, next_state, mask)  # Append transition to memory
-
-            state = next_state
-
-        if total_steps > arguments.num_steps:
-            break
-
-        writer.add_scalar('reward/train', episode_reward, i_episode)
-        print("Episode: {}, total numsteps: {}, episode steps: {}, reward: {}".format(i_episode, total_steps,
-                                                                                      episode_steps,
-                                                                                      round(episode_reward, 2)))
-
-        if i_episode % 10 == 0 and arguments.eval is True:
-            avg_reward = 0.
-            episodes = 10
-            for _ in range(episodes):
-                state = env.reset()
-                episode_reward = 0
-                done = False
-                while not done:
-                    action = agent.select_action(state, evaluate=True)
-
-                    next_state, reward, done, _ = env.step(action)
-                    episode_reward += reward
-
-                    state = next_state
-                avg_reward += episode_reward
-            avg_reward /= episodes
-
-            writer.add_scalar('avg_reward/test', avg_reward, i_episode)
-
-            print("----------------------------------------")
-            print("Test Episodes: {}, Avg. Reward: {}".format(episodes, round(avg_reward, 2)))
-            print("----------------------------------------")
 
     env.close()
 
 
+
 if __name__ == "__main__":
     args = parse_args()
-    run_agent_and_environment(args)
+    main(args)
