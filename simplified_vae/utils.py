@@ -1,6 +1,9 @@
 import numpy as np
 from gym import Env
 
+from simplified_vae.config import Config
+from simplified_vae.vae_storage import VAEBuffer
+
 
 def sample_trajectory(env: Env, max_env_steps):
 
@@ -8,7 +11,7 @@ def sample_trajectory(env: Env, max_env_steps):
     obs = env.reset()
 
     # init vars
-    all_obs, all_actions, all_rewards, all_next_obs, all_terminals = [], [], [], [], []
+    all_obs, all_actions, all_rewards, all_next_obs, all_dones = [], [], [], [], []
     steps = 0
     while True:
 
@@ -28,40 +31,27 @@ def sample_trajectory(env: Env, max_env_steps):
         # End the rollout if the rollout ended
         # Note that the rollout can end due to done, or due to max_path_length
         rollout_done = done or (steps >= max_env_steps)
-        all_terminals.append(done)
+        all_dones.append(done)
 
         if rollout_done:
             break
 
     return np.asarray(all_obs), \
            np.asarray(all_actions), \
-           np.asarray(all_rewards), \
+           np.asarray(all_rewards)[:, np.newaxis], \
            np.asarray(all_next_obs), \
-           np.asarray(all_terminals)
+           np.asarray(all_dones)[:, np.newaxis]
 
-def sample_trajectories(env, time_steps, max_env_steps):
 
-    curr_time_steps = 0
-    episodes = []
+def collect_trajectories(config: Config, env, vae_buffer: VAEBuffer):
 
-    while curr_time_steps < time_steps:
-        episodes.append(sample_trajectory(env, max_env_steps))
-        curr_time_steps += len(episodes[-1]['reward'])
+    for trajectory_idx in range(config.epiosde_num):
 
-    return episodes, curr_time_steps
+        obs, actions, rewards, next_obs, dones = sample_trajectory(env=env, max_env_steps=100)
 
-def sample_n_trajectories(env, trajectory_num, max_env_steps):
+        vae_buffer.insert(obs=obs,
+                          actions=actions,
+                          rewards=rewards,
+                          next_obs=next_obs,
+                          dones=dones)
 
-    episodes = []
-    for n in range(trajectory_num):
-        episodes.append(sample_trajectory(env, max_env_steps))
-
-    return episodes
-
-def Episode(obs, actions, rewards, next_obs, terminals):
-
-    return {"observations" : np.array(obs, dtype=np.float32),
-            "rewards" : np.array(rewards, dtype=np.float32),
-            "actions" : np.array(actions, dtype=np.float32),
-            "next_observations": np.array(next_obs, dtype=np.float32),
-            "terminals": np.array(terminals, dtype=np.float32)}

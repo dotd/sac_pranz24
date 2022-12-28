@@ -3,75 +3,72 @@ from typing import List
 import numpy as np
 import torch
 
+from simplified_vae.config import Config
 
-class VAEStorage(object):
 
-    def __init__(self, max_trajectory_len: int = 100,
-                 max_trajectory_num: int = 10000,
+class VAEBuffer(object):
+
+    def __init__(self,
+                 config: Config,
                  obs_dim: int = None,
-                 action_dim: int = None,
-                 device: int = None,
-                 ):
+                 action_dim: int = None):
+
         """
         Store everything that is needed for the VAE update
         :param num_processes:
         """
 
+        self.config: Config = config
+        self.buffer_config = config.buffer
 
         self.obs_dim: int = obs_dim
         self.action_dim: int = action_dim
-        self.device: int = device
+        self.device: str = 'cpu'
 
-        self.max_trajectory_num: int = max_trajectory_num  # maximum buffer len (number of trajectories)
         self.curr_insert_idx: int = 0  # at which index we're currently inserting new data
-        self.curr_trajectory_num: int = 0  # how much of the buffer has been filled
+        self.is_buffer_full: bool = False
 
-        # how long a trajectory can be at max (horizon)
-        self.max_trajectory_len: int = max_trajectory_len
+        # buffers for completed episodes (stored on CPU) each buffer is batch_num X seq_len X internal_dim
+        self.obs: torch.Tensor = torch.zeros((self.buffer_config.max_episode_num, self.buffer_config.max_episode_len, obs_dim)).to(self.device)
+        self.actions: torch.Tensor = torch.zeros((self.buffer_config.max_episode_num, self.buffer_config.max_episode_len, action_dim)).to(self.device)
+        self.rewards: torch.Tensor = torch.zeros((self.buffer_config.max_episode_num, self.buffer_config.max_episode_len, 1)).to(self.device)
+        self.next_obs: torch.Tensor = torch.zeros((self.buffer_config.max_episode_num, self.buffer_config.max_episode_len, obs_dim)).to(self.device)
+        self.dones: torch.Tensor = torch.zeros((self.buffer_config.max_episode_num, self.buffer_config.max_episode_len, 1)).to(self.device)
 
-        # buffers for completed rollouts (stored on CPU)
-        # TODO change to Batch First!!!
-        self.prev_state: torch.Tensor = torch.zeros((self.max_trajectory_len, self.max_trajectory_num, obs_dim))
-        self.next_state: torch.Tensor = torch.zeros((self.max_trajectory_len, self.max_trajectory_num, obs_dim))
-        self.actions: torch.Tensor = torch.zeros((self.max_trajectory_len, self.max_trajectory_num, action_dim))
-        self.rewards: torch.Tensor = torch.zeros((self.max_trajectory_len, self.max_trajectory_num, 1))
-        self.dones: torch.Tensor = torch.zeros((self.max_trajectory_len, self.max_trajectory_num, 1))
+        self.trajectory_lens: List = [0] * self.buffer_config.max_episode_num
 
-        self.trajectory_lens: List = [0] * self.max_trajectory_num
+    def insert(self, obs: np.ndarray,
+                     actions: np.ndarray,
+                     rewards: np.ndarray,
+                     next_obs: np.ndarray,
+                     dones: np.ndarray):
 
-    def insert(self, prev_states: np.ndarray, actions: np.ndarray, next_states: np.ndarray, rewards: np.ndarray, dones: np.ndarray):
+        # TODO support different size of trajectories
 
-        # TODO allow for different size of trajectories
+        self.obs[self.curr_insert_idx, :, :] = torch.from_numpy(obs).to(self.device)
+        self.actions[self.curr_insert_idx, :, :] = torch.from_numpy(actions).to(self.device)
+        self.rewards[self.curr_insert_idx, :, :] = torch.from_numpy(rewards).to(self.device)
+        self.next_obs[self.curr_insert_idx, :, :] = torch.from_numpy(next_obs).to(self.device)
+        self.dones[self.curr_insert_idx, :, :] = torch.from_numpy(dones).to(self.device)
 
-        self.prev_state[:, self.curr_insert_idx] = torch.from_numpy(prev_states).to(self.device)
-        self.next_state[:, self.curr_insert_idx] = torch.from_numpy(next_states).to(self.device)
-        self.actions[:, self.curr_insert_idx] = torch.from_numpy(actions).to(self.device)
-        self.rewards[:, self.curr_insert_idx] = torch.from_numpy(rewards).to(self.device)
-        self.dones[:, self.curr_insert_idx] = torch.from_numpy(dones).to(self.device)
+        self.curr_insert_idx = (self.curr_insert_idx + 1) % self.buffer_config.max_episode_num
 
-        self.curr_insert_idx = (self.curr_insert_idx + 1) % self.max_trajectory_num
+        if self.curr_insert_idx == self.buffer_config.max_episode_num - 1:
+            self.is_buffer_full = True
 
-    def __len__(self):
-        return self.curr_trajectory_num
+    def sample_batch(self, batch_size: int = 5):
 
-    def get_batch(self, batchsize: int = 5, replace: bool = False):
-        # TODO: check if we can get rid of num_enc_len and num_rollouts (call it batchsize instead)
+        curr_episode_num = self.buffer_config.max_episode_num if self.is_buffer_full else self.curr_insert_idx
 
-        batchsize = min(self.curr_trajectory_num, batchsize)
+        batch_size = min(curr_episode_num, batch_size)
 
         # select the indices for the processes from which we pick
-        trajectory_idx = np.random.choice(range(self.curr_trajectory_num), batchsize, replace=replace)
-        # trajectory length of the individual rollouts we picked
-        trajectory_lens = np.array(self.trajectory_lens)[trajectory_idx]
+        trajectory_idx = np.random.choice(range(curr_episode_num), batch_size, replace=False)
 
         # select the rollouts we want
-        prev_obs = self.prev_state[:, trajectory_idx, :]
-        next_obs = self.next_state[:, trajectory_idx, :]
-        actions = self.actions[:, trajectory_idx, :]
-        rewards = self.rewards[:, trajectory_idx, :]
+        obs = self.obs[trajectory_idx, :, :]
+        actions = self.actions[trajectory_idx, :, :]
+        rewards = self.rewards[trajectory_idx, :, :]
+        next_obs = self.next_obs[trajectory_idx, :, :]
 
-        return prev_obs.to(self.device), \
-               next_obs.to(self.device), \
-               actions.to(self.device), \
-               rewards.to(self.device),\
-               trajectory_lens
+        return obs, actions, rewards, next_obs

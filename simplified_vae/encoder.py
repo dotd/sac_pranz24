@@ -4,38 +4,39 @@ import torch
 import torch.nn as nn
 from torch.nn import functional as F
 
-from config import EncoderConfig
+from config import EncoderConfig, Config
 
 
 class RNNEncoder(nn.Module):
 
     def __init__(self,
-                encoder_config: EncoderConfig,
+                config: Config,
                 state_dim: int = None,
                 action_dim: int = None,
-                reward_dim: int = None):
+                reward_dim: int = 1):
 
         super(RNNEncoder, self).__init__()
 
-        self.encoder_config: EncoderConfig = encoder_config
+        self.config: Config = config
+        self.encoder_config: EncoderConfig = config.encoder
         self.state_dim: int = state_dim
         self.action_dim: int = action_dim
         self.reward_dim: int = reward_dim
 
-        self.recurrent_input_dim = encoder_config.obs_embed_dim + \
-                                   encoder_config.action_embed_dim + \
-                                   encoder_config.reward_embed_dim
+        self.recurrent_input_dim = self.encoder_config.obs_embed_dim + \
+                                   self.encoder_config.action_embed_dim + \
+                                   self.encoder_config.reward_embed_dim
 
-        self.vae_latent_dim = encoder_config.vae_hidden_dim
-        self.recurrent_hidden_dim = encoder_config.recurrent_hidden_dim
+        self.vae_latent_dim = self.encoder_config.vae_hidden_dim
+        self.recurrent_hidden_dim = self.encoder_config.recurrent_hidden_dim
 
         self.activation = F.relu
-        self.state_encoder = nn.Linear(state_dim, encoder_config.obs_embed_dim)
-        self.action_encoder = nn.Linear(action_dim, encoder_config.action_embed_dim)
-        self.reward_encoder = nn.Linear(reward_dim, encoder_config.reward_embed_dim)
+        self.state_encoder = nn.Linear(state_dim, self.encoder_config.obs_embed_dim)
+        self.action_encoder = nn.Linear(action_dim, self.encoder_config.action_embed_dim)
+        self.reward_encoder = nn.Linear(reward_dim, self.encoder_config.reward_embed_dim)
 
         self.gru = nn.GRU(input_size=self.recurrent_input_dim,
-                          hidden_size=encoder_config.recurrent_hidden_dim,
+                          hidden_size=self.encoder_config.recurrent_hidden_dim,
                           num_layers=1)
 
         for name, param in self.gru.named_parameters():
@@ -45,8 +46,8 @@ class RNNEncoder(nn.Module):
                 nn.init.orthogonal_(param)
 
         # output layer
-        self.fc_mu = nn.Linear(encoder_config.recurrent_hidden_dim, self.vae_latent_dim)
-        self.fc_logvar = nn.Linear(encoder_config.recurrent_hidden_dim, self.vae_latent_dim)
+        self.fc_mu = nn.Linear(self.encoder_config.recurrent_hidden_dim, self.vae_latent_dim)
+        self.fc_logvar = nn.Linear(self.encoder_config.recurrent_hidden_dim, self.vae_latent_dim)
 
     def reparameterise(self, mu, logvar):
 
@@ -54,7 +55,7 @@ class RNNEncoder(nn.Module):
         eps = torch.randn_like(std)
         return eps.mul(std).add_(mu)
 
-    def forward(self, actions, states, rewards, hidden_state):
+    def forward(self, obs, actions, rewards, hidden_state = None):
 
         """
         Actions, states, rewards should be given in form [sequence_len * batch_size * dim].
@@ -66,10 +67,10 @@ class RNNEncoder(nn.Module):
         # shape should be: sequence_len x batch_size x hidden_size
         # extract features for states, actions, rewards
 
-        ha = self.activation(self.action_encoder(actions))
-        hs = self.activation(self.state_encoder(states))
-        hr = self.activation(self.reward_encoder(rewards))
-        h = torch.cat((ha, hs, hr), dim=2)
+        obs_embed = self.activation(self.state_encoder(obs))
+        actions_embed = self.activation(self.action_encoder(actions))
+        reward_embed = self.activation(self.reward_encoder(rewards))
+        h = torch.cat((actions_embed, obs_embed, reward_embed), dim=2)
 
         output, _ = self.gru(h, hidden_state)
         gru_h = output.clone()
