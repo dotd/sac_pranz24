@@ -4,8 +4,8 @@ import numpy as np
 import time
 
 from simplified_vae.config import Config
-from simplified_vae.vae_trainer import VAETrainer
-from vae_storage import VAEBuffer
+from simplified_vae.utils.vae_trainer import VAETrainer
+from simplified_vae.utils.vae_storage import VAEBuffer
 from utils import collect_trajectories
 
 

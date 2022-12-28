@@ -1,9 +1,9 @@
 import torch
 
 from simplified_vae.config import Config
-from simplified_vae.losses import compute_state_reconstruction_loss, compute_reward_reconstruction_loss, compute_kl_loss
-from simplified_vae.vae import VAE
-from simplified_vae.vae_storage import VAEBuffer
+from simplified_vae.utils.losses import compute_state_reconstruction_loss, compute_reward_reconstruction_loss, compute_kl_loss
+from simplified_vae.models.vae import VAE
+from simplified_vae.utils.vae_storage import VAEBuffer
 
 
 class VAETrainer:
