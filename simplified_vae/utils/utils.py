@@ -2,7 +2,7 @@ import numpy as np
 from gym import Env
 
 from simplified_vae.config import Config
-from simplified_vae.vae_storage import VAEBuffer
+from simplified_vae.utils.vae_storage import VAEBuffer
 
 
 def sample_trajectory(env: Env, max_env_steps):
