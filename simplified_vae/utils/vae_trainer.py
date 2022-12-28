@@ -1,4 +1,5 @@
 import torch
+from tensorboardX import SummaryWriter
 
 from simplified_vae.config import Config
 from simplified_vae.utils.losses import compute_state_reconstruction_loss, compute_reward_reconstruction_loss, compute_kl_loss
@@ -14,6 +15,7 @@ class VAETrainer:
                        action_dim: int = None):
 
         self.config: Config = config
+        self.logger: SummaryWriter = config.logger
         self.model = VAE(config=config,
                          obs_dim=obs_dim,
                          action_dim=action_dim)
@@ -32,8 +34,13 @@ class VAETrainer:
         for iter_idx in range(iter_num):
 
             obs, actions, rewards, next_obs = self.buffer.sample_batch(self.config.training.batch_size)
+            state_reconstruction_loss, \
+            reward_reconstruction_loss, \
+            kl_loss = self.train_iter(obs, actions, rewards, next_obs)
 
-            self.train_iter(obs, actions, rewards, next_obs)
+            self.logger.add_scalar('loss/state_reconstruction_loss', state_reconstruction_loss, iter_idx)
+            self.logger.add_scalar('loss/reward_reconstruction_loss', reward_reconstruction_loss, iter_idx)
+            self.logger.add_scalar('loss/kl_loss', kl_loss, iter_idx)
 
     def train_iter(self, obs: torch.Tensor,
                          actions: torch.Tensor,
@@ -58,4 +65,6 @@ class VAETrainer:
         self.optimizer.zero_grad()
         total_loss.backward()
         self.optimizer.step()
+
+        return state_reconstruction_loss.item(), reward_reconstruction_loss.item(), kl_loss.item()
 
