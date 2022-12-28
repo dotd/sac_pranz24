@@ -21,18 +21,18 @@ def compute_kl_loss(latent_mean, latent_logvar):
     # -- KL divergence
     gauss_dim = latent_mean.shape[-1]
 
-    # add the gaussian prior
-    all_means = torch.cat((torch.zeros(1, *latent_mean.shape[1:]).to(device), latent_mean))
-    all_logvars = torch.cat((torch.zeros(1, *latent_logvar.shape[1:]).to(device), latent_logvar))
-
     # https://arxiv.org/pdf/1811.09975.pdf
     # KL(N(mu,E)||N(m,S)) = 0.5 * (log(|S|/|E|) - K + tr(S^-1 E) + (m-mu)^T S^-1 (m-mu)))
-    mu = all_means[1:]
-    m = all_means[:-1]
-    logE = all_logvars[1:]
-    logS = all_logvars[:-1]
-    kl_divergences = 0.5 * (torch.sum(logS, dim=-1) - torch.sum(logE, dim=-1) - gauss_dim + torch.sum(
-        1 / torch.exp(logS) * torch.exp(logE), dim=-1) + ((m - mu) / torch.exp(logS) * (m - mu)).sum(dim=-1))
+
+    mu = latent_mean[:, 1:, :] # curr_posterior_mean
+    m = latent_mean[:, :-1, :] # prev_posterior_mean
+
+    logE = latent_logvar[:, 1:, :] # curr_posterior_logvar
+    logS = latent_logvar[:,:-1, :] # prev_posterior_logvar
+
+    kl_divergences = 0.5 * (torch.sum(logS, dim=-1) - torch.sum(logE, dim=-1) - gauss_dim +
+                            torch.sum(torch.exp(logE) / torch.exp(logS), dim=-1) +
+                            ((m - mu) / torch.exp(logS) * (m - mu)).sum(dim=-1))
 
     return kl_divergences
 

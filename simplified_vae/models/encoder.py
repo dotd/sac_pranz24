@@ -53,8 +53,10 @@ class RNNEncoder(nn.Module):
             reparameterise(self, mu, logvar):
 
         std = torch.exp(0.5 * logvar)
-        eps = torch.randn_like(std)
-        return eps.mul(std).add_(mu)
+        noise = torch.randn_like(std).to(self.device)
+        z = mu + noise * std
+
+        return z
 
     def forward(self, obs, actions, rewards, hidden_state = None):
 
