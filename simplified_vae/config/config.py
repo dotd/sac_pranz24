@@ -38,13 +38,25 @@ class TrainingConfig(BaseModel):
     reward_reconstruction_loss_weight: float = 1.0
     kl_loss_weight: float = 0.1
     pretrain_iter = 100000
-    pretrain_collected_epiosde_num = 1000
+
+    eval_freq: int = 100
+    print_loss_freq = 50
 
 
 class BufferConfig(BaseModel):
 
+    max_episode_len: int
+    max_episode_num: int
+
+class TrainBufferConfig(BufferConfig):
+
     max_episode_len: int = 100
-    max_episode_num: int = 10000
+    max_episode_num: int = 1000
+
+class TestBufferConfig(BufferConfig):
+
+    max_episode_len: int = 100
+    max_episode_num: int = 50
 
 
 class Config:
@@ -55,8 +67,12 @@ class Config:
 
     logger = SummaryWriter(f'runs/{datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}_VAE')
 
-    buffer: BufferConfig = BufferConfig()
     training: TrainingConfig = TrainingConfig()
     encoder: EncoderConfig = EncoderConfig()
     state_decoder: StateDecoderConfig = StateDecoderConfig()
     reward_decoder: RewardDecoderConfig = RewardDecoderConfig()
+
+    train_buffer: TrainBufferConfig = TrainBufferConfig()
+    test_buffer: TestBufferConfig = TestBufferConfig()
+
+

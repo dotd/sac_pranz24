@@ -17,7 +17,6 @@ def main():
 
     vae_trainer = VAETrainer(config=config, env=env)
 
-    vae_trainer.collect_trajectories()
     vae_trainer.train_model()
 
 
