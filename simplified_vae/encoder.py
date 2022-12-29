@@ -37,7 +37,7 @@ class RNNEncoder(nn.Module):
 
         self.gru = nn.GRU(input_size=self.recurrent_input_dim,
                           hidden_size=self.encoder_config.recurrent_hidden_dim,
-                          num_layers=1)
+                          num_layers=1, batch_first=True)
 
         for name, param in self.gru.named_parameters():
             if 'bias' in name:
@@ -49,7 +49,8 @@ class RNNEncoder(nn.Module):
         self.fc_mu = nn.Linear(self.encoder_config.recurrent_hidden_dim, self.vae_latent_dim)
         self.fc_logvar = nn.Linear(self.encoder_config.recurrent_hidden_dim, self.vae_latent_dim)
 
-    def reparameterise(self, mu, logvar):
+    def \
+            reparameterise(self, mu, logvar):
 
         std = torch.exp(0.5 * logvar)
         eps = torch.randn_like(std)

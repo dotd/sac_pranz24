@@ -37,15 +37,10 @@ class VAE(nn.Module):
 
     def forward(self, obs: torch.Tensor, actions: torch.Tensor, rewards: torch.Tensor, next_obs: torch.Tensor):
 
-        obs_d = obs.to(self.config.device)
-        actions_d = actions.to(self.config.device)
-        rewards_d = rewards.to(self.config.device)
-        next_obs_d = next_obs.to(self.config.device)
+        latent_sample, latent_mean, latent_logvar, output = self.encoder(obs=obs, actions=actions, rewards=rewards)
 
-        latent_sample, latent_mean, latent_logvar, output = self.encoder(obs=obs_d, actions=actions_d, rewards=rewards_d)
-
-        next_obs_preds = self.state_decoder(latent_sample, obs_d, actions_d)
-        rewards_pred = self.reward_decoder(latent_sample, obs_d, actions_d, next_obs_d)
+        next_obs_preds = self.state_decoder(latent_sample, obs, actions)
+        rewards_pred = self.reward_decoder(latent_sample, obs, actions, next_obs)
 
         return next_obs_preds, rewards_pred, latent_mean, latent_logvar
 

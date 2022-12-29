@@ -40,10 +40,15 @@ class VAETrainer:
                          rewards: torch.Tensor,
                          next_obs: torch.Tensor):
 
-        next_obs_preds, rewards_pred, latent_mean, latent_logvar = self.model(obs, actions, rewards, next_obs)
+        obs_d = obs.to(self.config.device)
+        actions_d = actions.to(self.config.device)
+        rewards_d = rewards.to(self.config.device)
+        next_obs_d = next_obs.to(self.config.device)
 
-        state_reconstruction_loss = compute_state_reconstruction_loss(next_obs_preds, next_obs)
-        reward_reconstruction_loss = compute_reward_reconstruction_loss(rewards_pred, rewards)
+        next_obs_preds, rewards_pred, latent_mean, latent_logvar = self.model(obs_d, actions_d, rewards_d, next_obs_d)
+
+        state_reconstruction_loss = compute_state_reconstruction_loss(next_obs_preds, next_obs_d)
+        reward_reconstruction_loss = compute_reward_reconstruction_loss(rewards_pred, rewards_d)
         kl_loss = compute_kl_loss(latent_mean=latent_mean, latent_logvar=latent_logvar)
 
         total_loss = self.config.training.state_reconstruction_loss_weight * state_reconstruction_loss + \
