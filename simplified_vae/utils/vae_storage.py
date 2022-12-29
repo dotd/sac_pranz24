@@ -3,7 +3,7 @@ from typing import List
 import numpy as np
 import torch
 
-from simplified_vae.config import Config
+from simplified_vae.config.config import Config
 
 
 class VAEBuffer(object):
