@@ -5,30 +5,26 @@ import random
 # Same environment as in LILAC for Half cheetah Windvel
 from torch.utils.tensorboard import SummaryWriter
 
+from simplified_vae.config.config import Config
+
 
 class StationaryCheetahWindVelEnv(Wrapper):
 
-    def __init__(self, env: gym.Env, summary_writer: SummaryWriter):
+    def __init__(self, env: gym.Env, config: Config):
 
         super(StationaryCheetahWindVelEnv, self).__init__(env)
 
-        self.summary_writer: SummaryWriter = summary_writer
-
+        self.config: Config = config
         self.action_dim: np.ndarray = self.env.action_space.shape[0]
 
-        self.low_target_vel: float = 0.
-        self.high_target_vel: float = 3.
-        self.low_wind_frc: float = 0.
-        self.high_wind_frc: float = 20.
+        self.default_target_vel: float = (config.task.high_target_vel + config.task.low_target_vel) / 2
+        self.default_wind_frc: float = (config.task.high_wind_frc + config.task.low_wind_frc) / 2
 
-        self.default_target_vel: float = (self.high_target_vel + self.low_target_vel) / 2
-        self.default_wind_frc: float = (self.high_wind_frc + self.low_wind_frc) / 2
-
-        self.task_space = spaces.Box(low=np.array ([self.low_target_vel,  self.low_wind_frc], dtype=np.float32),
-                                     high=np.array([self.high_target_vel, self.high_wind_frc], dtype=np.float32),
+        self.task_space = spaces.Box(low=np.array ([config.task.low_target_vel,  config.task.low_wind_frc], dtype=np.float32),
+                                     high=np.array([config.task.high_target_vel, config.task.high_wind_frc], dtype=np.float32),
                                      dtype=np.float32)
 
-        self._max_episode_steps = 1000
+        self._max_episode_steps = config.train_buffer.max_episode_len
         self.task: np.ndarray = np.asarray([self.default_target_vel, self.default_wind_frc])
 
     def get_task(self):
@@ -44,6 +40,7 @@ class StationaryCheetahWindVelEnv(Wrapper):
             self.task = self.task_space.sample()
         else:
             self.task = task
+
 
     def step(self, action):
 
@@ -67,8 +64,6 @@ class StationaryCheetahWindVelEnv(Wrapper):
         return next_obs, reward, done, info
 
     def reset(self, **kwargs):
-        self.summary_writer.add_scalar('env/target_velocity', self.task[0])
-        self.summary_writer.add_scalar('env/wind_friction', self.task[1])
         return self.env.reset(**kwargs)
 
     def viewer_setup(self):

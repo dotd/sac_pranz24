@@ -39,8 +39,16 @@ class TrainingConfig(BaseModel):
     kl_loss_weight: float = 0.1
     pretrain_iter = 100000
 
-    eval_freq: int = 100
-    print_loss_freq = 50
+    change_env_freq: int = 100
+    eval_freq: int = 50
+    print_train_loss_freq = 50
+
+class TaskConfig(BaseModel):
+
+    low_target_vel: float = 0.
+    high_target_vel: float = 3.
+    low_wind_frc: float = 0.
+    high_wind_frc: float = 20.
 
 
 class BufferConfig(BaseModel):
@@ -48,10 +56,12 @@ class BufferConfig(BaseModel):
     max_episode_len: int
     max_episode_num: int
 
+
 class TrainBufferConfig(BufferConfig):
 
     max_episode_len: int = 100
-    max_episode_num: int = 1000
+    max_episode_num: int = 5000
+
 
 class TestBufferConfig(BufferConfig):
 
@@ -71,7 +81,7 @@ class Config:
     encoder: EncoderConfig = EncoderConfig()
     state_decoder: StateDecoderConfig = StateDecoderConfig()
     reward_decoder: RewardDecoderConfig = RewardDecoderConfig()
-
+    task: TaskConfig = TaskConfig()
     train_buffer: TrainBufferConfig = TrainBufferConfig()
     test_buffer: TestBufferConfig = TestBufferConfig()
 
