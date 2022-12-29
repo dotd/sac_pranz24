@@ -1,7 +1,7 @@
 import numpy as np
 from gym import Env
 
-from simplified_vae.config import Config
+from simplified_vae.config.config import Config
 from simplified_vae.utils.vae_storage import VAEBuffer
 
 
@@ -43,15 +43,4 @@ def sample_trajectory(env: Env, max_env_steps):
            np.asarray(all_dones)[:, np.newaxis]
 
 
-def collect_trajectories(config: Config, env, vae_buffer: VAEBuffer):
-
-    for trajectory_idx in range(config.epiosde_num):
-
-        obs, actions, rewards, next_obs, dones = sample_trajectory(env=env, max_env_steps=100)
-
-        vae_buffer.insert(obs=obs,
-                          actions=actions,
-                          rewards=rewards,
-                          next_obs=next_obs,
-                          dones=dones)
 

@@ -4,10 +4,10 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from decoder import StateTransitionDecoder, RewardDecoder
-from encoder import RNNEncoder
+from simplified_vae.models.decoder import StateTransitionDecoder, RewardDecoder
+from simplified_vae.models.encoder import RNNEncoder
 
-from simplified_vae.config import Config
+from simplified_vae.config.config import Config
 
 
 class VAE(nn.Module):

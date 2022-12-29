@@ -151,6 +151,7 @@ def compute_loss(self, latent_mean,
             rew_reconstruction_loss = rew_reconstruction_loss.mean(dim=0)
         else:
             rew_reconstruction_loss = rew_reconstruction_loss.sum(dim=0)
+
         # average across tasks
         rew_reconstruction_loss = rew_reconstruction_loss.mean()
     else:

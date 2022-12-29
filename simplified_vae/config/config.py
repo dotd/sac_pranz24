@@ -1,6 +1,9 @@
 import pydantic
 import torch
-from tensorboardX import SummaryWriter
+import datetime
+
+from torch.utils.tensorboard import SummaryWriter
+
 
 class BaseModel(pydantic.BaseModel, extra=pydantic.Extra.forbid):
     """Disallow extra arguments to init"""
@@ -27,14 +30,15 @@ class RewardDecoderConfig(BaseModel):
     layers = [64, 32]
 
 
-class TrainingConfig:
+class TrainingConfig(BaseModel):
 
     lr: float = 0.001
     batch_size: int = 32
     state_reconstruction_loss_weight: float = 1.0
     reward_reconstruction_loss_weight: float = 1.0
     kl_loss_weight: float = 0.1
-    pretrain_episodes = 100
+    pretrain_iter = 100000
+    pretrain_collected_epiosde_num = 1000
 
 
 class BufferConfig(BaseModel):
@@ -43,15 +47,13 @@ class BufferConfig(BaseModel):
     max_episode_num: int = 10000
 
 
-class Config():
+class Config:
 
     env_name: str = 'HalfCheetah-v3'
     device: int = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     seed: int = 0
 
     logger = SummaryWriter(f'runs/{datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}_VAE')
-
-    epiosde_num = 100
 
     buffer: BufferConfig = BufferConfig()
     training: TrainingConfig = TrainingConfig()

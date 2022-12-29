@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from torch.nn import functional as F
 
-from config import Config
+from simplified_vae.config.config import Config
 
 
 class StateTransitionDecoder(nn.Module):
@@ -20,6 +20,7 @@ class StateTransitionDecoder(nn.Module):
 
         self.state_encoder = nn.Linear(obs_dim, self.encoder_config.obs_embed_dim)
         self.action_encoder = nn.Linear(action_dim, self.encoder_config.action_embed_dim)
+        self.activation = F.relu
 
         curr_input_dim = self.encoder_config.vae_hidden_dim + \
                          self.encoder_config.obs_embed_dim + \
@@ -34,13 +35,13 @@ class StateTransitionDecoder(nn.Module):
 
     def forward(self, latent_state, obs, actions):
 
-        obs_embed = F.relu(self.state_encoder(obs))
-        actions_embed = F.relu(self.action_encoder(actions))
+        obs_embed = self.activation(self.state_encoder(obs))
+        actions_embed = self.activation(self.action_encoder(actions))
 
         h = torch.cat((latent_state, obs_embed, actions_embed), dim=-1)
 
         for i in range(len(self.fc_layers)):
-            h = F.relu(self.fc_layers[i](h))
+            h = self.activation(self.fc_layers[i](h))
 
         return self.fc_out(h)
 
@@ -60,6 +61,7 @@ class RewardDecoder(nn.Module):
         # get state as input and predict reward prob
         self.state_encoder = nn.Linear(obs_dim, self.encoder_config.obs_embed_dim)
         self.action_encoder = nn.Linear(action_dim, self.encoder_config.action_embed_dim)
+        self.activation = F.relu
 
         curr_input_dim = self.encoder_config.vae_hidden_dim + \
                          self.encoder_config.action_embed_dim + \
@@ -74,14 +76,14 @@ class RewardDecoder(nn.Module):
 
     def forward(self, latent_state, obs, actions, next_obs):
 
-        obs_embed = F.relu(self.state_encoder(obs))
-        actions_embed  = F.relu(self.action_encoder(actions))
-        next_obs_embed = F.relu(self.state_encoder(next_obs))
+        obs_embed = self.activation(self.state_encoder(obs))
+        actions_embed  = self.activation(self.action_encoder(actions))
+        next_obs_embed = self.activation(self.state_encoder(next_obs))
 
         h = torch.cat((latent_state, obs_embed, actions_embed, next_obs_embed), dim=-1)
 
         for i in range(len(self.fc_layers)):
-            h = F.relu(self.fc_layers[i](h))
+            h = self.activation(self.fc_layers[i](h))
 
         return self.fc_out(h)
 

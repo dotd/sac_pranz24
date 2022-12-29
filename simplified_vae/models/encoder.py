@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 from torch.nn import functional as F
 
-from config import EncoderConfig, Config
+from simplified_vae.config.config import EncoderConfig, Config
 
 
 class RNNEncoder(nn.Module):
@@ -53,7 +53,7 @@ class RNNEncoder(nn.Module):
             reparameterise(self, mu, logvar):
 
         std = torch.exp(0.5 * logvar)
-        noise = torch.randn_like(std).to(self.device)
+        noise = torch.randn_like(std).to(self.config.device)
         z = mu + noise * std
 
         return z
@@ -67,7 +67,7 @@ class RNNEncoder(nn.Module):
         In the latter case, we return embeddings of length sequence_len+1 since they include the prior.
         """
 
-        # shape should be: sequence_len x batch_size x hidden_size
+        # shape should be: batch_size X sequence_len X hidden_size
         # extract features for states, actions, rewards
 
         obs_embed = self.activation(self.state_encoder(obs))
@@ -83,8 +83,5 @@ class RNNEncoder(nn.Module):
         latent_logvar = self.fc_logvar(gru_h)
 
         latent_sample = self.reparameterise(latent_mean, latent_logvar)
-
-        if latent_mean.shape[0] == 1:
-            latent_sample, latent_mean, latent_logvar = latent_sample[0], latent_mean[0], latent_logvar[0]
 
         return latent_sample, latent_mean, latent_logvar, output
