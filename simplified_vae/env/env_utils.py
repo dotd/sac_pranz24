@@ -1,8 +1,10 @@
 import gym
 import numpy as np
 from gym import Env
+import torch
 
 from simplified_vae.config.config import Config
+from simplified_vae.env.stationary_cheetah_windvel_wrapper import StationaryCheetahWindVelEnv
 
 
 def sample_trajectory(env: Env, max_env_steps):
@@ -43,8 +45,23 @@ def sample_trajectory(env: Env, max_env_steps):
            np.asarray(all_dones)[:, np.newaxis]
 
 
-def make_env(config: Config):
+def make_stationary_env(config: Config):
+
+    # Environment
+    max_episode_steps = 100
 
     env = gym.make(config.env_name)
+    env._max_episode_steps = config.train_buffer.max_episode_len
+
+    env = StationaryCheetahWindVelEnv(env=env, config=config)
+    env._max_episode_steps = max_episode_steps
+
     env.seed(config.seed)
+    env.action_space.seed(config.seed)
+
+    torch.manual_seed(config.seed)
+    np.random.seed(config.seed)
+
+    return env
+
 

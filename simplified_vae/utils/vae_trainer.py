@@ -4,6 +4,7 @@ from torch.utils.tensorboard import SummaryWriter
 
 from simplified_vae.config.config import Config
 from simplified_vae.env.env_utils import sample_trajectory
+from simplified_vae.env.stationary_cheetah_windvel_wrapper import StationaryCheetahWindVelEnv
 from simplified_vae.utils.losses import compute_state_reconstruction_loss, compute_reward_reconstruction_loss, compute_kl_loss
 from simplified_vae.models.vae import VAE
 from simplified_vae.utils.vae_storage import VAEBuffer
@@ -12,12 +13,12 @@ from simplified_vae.utils.vae_storage import VAEBuffer
 class VAETrainer:
 
     def __init__(self, config: Config,
-                       env: gym.Env):
+                       env: StationaryCheetahWindVelEnv):
 
         self.config: Config = config
         self.logger: SummaryWriter = config.logger
 
-        self.env: gym.Env = env
+        self.env: StationaryCheetahWindVelEnv = env
         self.obs_dim: int = env.observation_space.shape[0]
         discrete = isinstance(env.action_space, gym.spaces.Discrete)
         self.action_dim: int = env.action_space.n if discrete else env.action_space.shape[0]
@@ -33,9 +34,7 @@ class VAETrainer:
 
     def train_model(self):
 
-        self.collect_trajectories(buffer=self.train_buffer,
-                                  episode_num=self.config.train_buffer.max_episode_num,
-                                  max_episode_len=self.config.train_buffer.max_episode_len)
+        self.collect_train_trajectories()
 
         for iter_idx in range(self.config.training.pretrain_iter):
 
@@ -48,18 +47,16 @@ class VAETrainer:
             self.logger.add_scalar(tag='train/reward_reconstruction_loss', scalar_value=reward_reconstruction_loss, global_step=iter_idx)
             self.logger.add_scalar(tag='train/kl_loss', scalar_value=kl_loss, global_step=iter_idx)
 
-            if iter_idx % self.config.training.print_loss_freq == 0:
+            if iter_idx % self.config.training.print_train_loss_freq == 0:
 
                 print(f'Train: curr_iter = {iter_idx}, '
-                      f'state_loss = {state_reconstruction_loss},'
-                      f'reward_loss = {reward_reconstruction_loss},'
+                      f'state_loss = {state_reconstruction_loss}, '
+                      f'reward_loss = {reward_reconstruction_loss}, '
                       f'kl_loss = {kl_loss}')
 
             if iter_idx % self.config.training.eval_freq == 0:
 
-                self.collect_trajectories(buffer=self.test_buffer,
-                                          episode_num=self.config.test_buffer.max_episode_num,
-                                          max_episode_len=self.config.test_buffer.max_episode_len)
+                self.collect_test_trajectories()
 
                 obs, actions, rewards, next_obs = self.test_buffer.sample_batch(batch_size=self.config.test_buffer.max_episode_num)
 
@@ -68,8 +65,8 @@ class VAETrainer:
                 kl_loss = self.test_iter(obs=obs, actions=actions, rewards=rewards, next_obs=next_obs)
 
                 print(f'Test: curr_iter = {iter_idx}, '
-                      f'state_loss = {state_reconstruction_loss},'
-                      f'reward_loss = {reward_reconstruction_loss},'
+                      f'state_loss = {state_reconstruction_loss}, '
+                      f'reward_loss = {reward_reconstruction_loss}, '
                       f'kl_loss = {kl_loss}')
 
                 self.logger.add_scalar('test/state_reconstruction_loss', state_reconstruction_loss, iter_idx)
@@ -126,18 +123,38 @@ class VAETrainer:
 
             return state_reconstruction_loss.item(), reward_reconstruction_loss.item(), kl_loss.item()
 
-    def collect_trajectories(self, buffer: VAEBuffer, episode_num: int, max_episode_len: int):
 
-        # start_time = time.time()
+    def collect_train_trajectories(self):
 
-        for trajectory_idx in range(episode_num):
-            obs, actions, rewards, next_obs, dones = sample_trajectory(env=self.env, max_env_steps=max_episode_len)
+        for trajectory_idx in range(self.config.train_buffer.max_episode_num):
 
-            buffer.insert(obs=obs,
-                          actions=actions,
-                          rewards=rewards,
-                          next_obs=next_obs,
-                          dones=dones)
+            if trajectory_idx % self.config.training.change_env_freq == 0:
+                self.env.set_task(task=None)
+                print(f'Train: Episode idx {trajectory_idx}/{self.config.train_buffer.max_episode_num}, task - {self.env.get_task()}')
+
+            obs, actions, rewards, next_obs, dones = sample_trajectory(env=self.env, max_env_steps=self.config.train_buffer.max_episode_len)
+
+            self.train_buffer.insert(obs=obs,
+                                     actions=actions,
+                                     rewards=rewards,
+                                     next_obs=next_obs,
+                                     dones=dones)
+
+    def collect_test_trajectories(self):
+
+        for trajectory_idx in range(self.config.test_buffer.max_episode_num):
+
+            self.env.set_task(task=None)
+
+            obs, actions, rewards, next_obs, dones = sample_trajectory(env=self.env, max_env_steps=self.config.test_buffer.max_episode_len)
+
+            self.test_buffer.insert(obs=obs,
+                                    actions=actions,
+                                    rewards=rewards,
+                                    next_obs=next_obs,
+                                    dones=dones)
+
+
 
         # stop_time = time.time()
         # elapsed_time = stop_time - start_time
