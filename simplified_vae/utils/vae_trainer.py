@@ -1,10 +1,9 @@
 import gym
 import torch
-import time
 from torch.utils.tensorboard import SummaryWriter
 
 from simplified_vae.config.config import Config
-from simplified_vae.utils.env_utils import sample_trajectory
+from simplified_vae.env.env_utils import sample_trajectory
 from simplified_vae.utils.losses import compute_state_reconstruction_loss, compute_reward_reconstruction_loss, compute_kl_loss
 from simplified_vae.models.vae import VAE
 from simplified_vae.utils.vae_storage import VAEBuffer
@@ -52,9 +51,9 @@ class VAETrainer:
             if iter_idx % self.config.training.print_loss_freq == 0:
 
                 print(f'Train: curr_iter = {iter_idx}, '
-                      f'train_state_loss = {state_reconstruction_loss},'
-                      f'train_reward_loss = {reward_reconstruction_loss},'
-                      f'train_kl_loss = {kl_loss}')
+                      f'state_loss = {state_reconstruction_loss},'
+                      f'reward_loss = {reward_reconstruction_loss},'
+                      f'kl_loss = {kl_loss}')
 
             if iter_idx % self.config.training.eval_freq == 0:
 
@@ -69,9 +68,9 @@ class VAETrainer:
                 kl_loss = self.test_iter(obs=obs, actions=actions, rewards=rewards, next_obs=next_obs)
 
                 print(f'Test: curr_iter = {iter_idx}, '
-                      f'train_state_loss = {state_reconstruction_loss},'
-                      f'train_reward_loss = {reward_reconstruction_loss},'
-                      f'train_kl_loss = {kl_loss}')
+                      f'state_loss = {state_reconstruction_loss},'
+                      f'reward_loss = {reward_reconstruction_loss},'
+                      f'kl_loss = {kl_loss}')
 
                 self.logger.add_scalar('test/state_reconstruction_loss', state_reconstruction_loss, iter_idx)
                 self.logger.add_scalar('test/reward_reconstruction_loss', reward_reconstruction_loss, iter_idx)
