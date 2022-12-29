@@ -1,8 +1,8 @@
+import gym
 import numpy as np
 from gym import Env
 
 from simplified_vae.config.config import Config
-from simplified_vae.utils.vae_storage import VAEBuffer
 
 
 def sample_trajectory(env: Env, max_env_steps):
@@ -43,4 +43,8 @@ def sample_trajectory(env: Env, max_env_steps):
            np.asarray(all_dones)[:, np.newaxis]
 
 
+def make_env(config: Config):
+
+    env = gym.make(config.env_name)
+    env.seed(config.seed)
 
