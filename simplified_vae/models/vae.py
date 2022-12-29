@@ -34,7 +34,6 @@ class VAE(nn.Module):
         self.state_decoder = StateTransitionDecoder(config=config, action_dim=action_dim, obs_dim=obs_dim).to(self.config.device)
         self.reward_decoder = RewardDecoder(config=config, action_dim=action_dim, obs_dim=obs_dim).to(self.config.device)
 
-
     def forward(self, obs: torch.Tensor, actions: torch.Tensor, rewards: torch.Tensor, next_obs: torch.Tensor):
 
         latent_sample, latent_mean, latent_logvar, output = self.encoder(obs=obs, actions=actions, rewards=rewards)

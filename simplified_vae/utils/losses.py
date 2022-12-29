@@ -6,6 +6,11 @@ def compute_state_reconstruction_loss(mext_obs_pred: torch.Tensor, next_obs: tor
     (No reduction of loss along batch dimension is done here; sum/avg has to be done outside) """
 
     state_loss = (mext_obs_pred - next_obs).pow(2).mean(dim=-1)
+
+    state_loss = state_loss.sum(dim=-1)
+    state_loss = state_loss.sum(dim=-1)
+    state_loss = state_loss.mean(dim=0)
+
     return state_loss
 
 
@@ -14,6 +19,11 @@ def compute_reward_reconstruction_loss(rewards_pred: torch.Tensor, rewards: torc
     (No reduction of loss along batch dimension is done here; sum/avg has to be done outside) """
 
     reward_loss = (rewards_pred - rewards).pow(2).mean(dim=-1)
+
+    reward_loss = reward_loss.sum(dim=-1)
+    reward_loss = reward_loss.sum(dim=-1)
+    reward_loss = reward_loss.mean(dim=0)
+
     return reward_loss
 
 def compute_kl_loss(latent_mean, latent_logvar):
@@ -30,11 +40,15 @@ def compute_kl_loss(latent_mean, latent_logvar):
     logE = latent_logvar[:, 1:, :] # curr_posterior_logvar
     logS = latent_logvar[:,:-1, :] # prev_posterior_logvar
 
-    kl_divergences = 0.5 * (torch.sum(logS, dim=-1) - torch.sum(logE, dim=-1) - gauss_dim +
-                            torch.sum(torch.exp(logE) / torch.exp(logS), dim=-1) +
-                            ((m - mu) / torch.exp(logS) * (m - mu)).sum(dim=-1))
+    kl_loss = 0.5 * (torch.sum(logS, dim=-1) - torch.sum(logE, dim=-1) - gauss_dim +
+                    torch.sum(torch.exp(logE) / torch.exp(logS), dim=-1) +
+                    ((m - mu) / torch.exp(logS) * (m - mu)).sum(dim=-1))
 
-    return kl_divergences
+    kl_loss = kl_loss.sum(dim=-1)
+    kl_loss = kl_loss.sum(dim=-1)
+    kl_loss = kl_loss.mean(dim=0)
+
+    return kl_loss
 
 
 def compute_loss(self, latent_mean,
