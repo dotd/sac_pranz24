@@ -4,7 +4,7 @@ import torch
 from torch.utils.tensorboard import SummaryWriter
 
 from simplified_vae.config.config import Config
-from simplified_vae.utils.env_utils import collect_train_trajectories, collect_test_trajectories
+from simplified_vae.utils.env_utils import collect_stationary_train_trajectories, collect_stationary_test_trajectories
 from simplified_vae.env.stationary_cheetah_windvel_wrapper import StationaryCheetahWindVelEnv
 from simplified_vae.utils.losses import compute_state_reconstruction_loss, compute_reward_reconstruction_loss, compute_kl_loss
 from simplified_vae.models.vae import VAE
@@ -37,7 +37,7 @@ class VAETrainer:
 
     def train_model(self):
 
-        collect_train_trajectories(self.config, self.env, self.train_buffer)
+        collect_stationary_train_trajectories(self.config, self.env, self.train_buffer)  # stationary trajectories
 
         for iter_idx in range(self.config.training.pretrain_iter):
 
@@ -76,7 +76,7 @@ class VAETrainer:
 
             if iter_idx % self.config.training.eval_freq == 0:
 
-                collect_test_trajectories(self.config, self.env, self.test_buffer)
+                collect_stationary_test_trajectories(self.config, self.env, self.test_buffer)
 
                 obs, actions, rewards, next_obs = self.test_buffer.sample_batch(batch_size=self.config.test_buffer.max_episode_num)
 

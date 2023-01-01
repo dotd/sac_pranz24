@@ -5,7 +5,7 @@ import torch
 import numpy as np
 
 from simplified_vae.config.config import Config
-from simplified_vae.utils.env_utils import make_stationary_env, sample_trajectory, collect_stationary_trajectories
+from simplified_vae.utils.env_utils import make_stationary_env, sample_stationary_trajectory, collect_stationary_trajectories
 from simplified_vae.models.vae import VAE
 from simplified_vae.utils.logging_utils import load_checkpoint
 from simplified_vae.utils.vae_storage import VAEBuffer
@@ -61,7 +61,7 @@ def main():
         obs_0, actions_0, rewards_0, next_obs_0 = test_buffer.sample_section(start_idx=0, end_idx=trajectories_num)
         obs_1, actions_1, rewards_1, next_obs_1 = test_buffer.sample_section(start_idx=trajectories_num, end_idx=trajectories_num*2)
 
-        # joint trajectory
+        # non-stationary trajectory
         obs_2      = torch.cat([obs_0[:, :config.train_buffer.max_episode_len // 2, :], obs_1[:, :config.train_buffer.max_episode_len // 2, :]], dim=1)
         actions_2  = torch.cat([actions_0[:, :config.train_buffer.max_episode_len // 2, :], actions_1[:, :config.train_buffer.max_episode_len // 2, :]], dim=1)
         rewards_2  = torch.cat([rewards_0[:, :config.train_buffer.max_episode_len // 2, :], rewards_1[:, :config.train_buffer.max_episode_len // 2, :]], dim=1)
@@ -108,34 +108,60 @@ def main():
     latent_logvar_2 = latent_logvar_2.cpu().numpy()
     latent_logvar_3 = latent_logvar_3.cpu().numpy()
 
-    episode_idx = 20
+    episode_idx = 30
     a_0, a_00 = latent_mean_0[episode_idx, :, 0], latent_logvar_0[episode_idx, :, 0]
     b_0, b_00 = latent_mean_0[episode_idx, :, 1], latent_logvar_0[episode_idx, :, 1]
     c_0, c_00 = latent_mean_0[episode_idx, :, 2], latent_logvar_0[episode_idx, :, 2]
+    d_0, d_00 = latent_mean_0[episode_idx, :, 3], latent_logvar_0[episode_idx, :, 3]
+    e_0, e_00 = latent_mean_0[episode_idx, :, 4], latent_logvar_0[episode_idx, :, 4]
 
     a_1, a_11 = latent_mean_1[episode_idx, :, 0], latent_logvar_1[episode_idx, :, 0]
     b_1, b_11 = latent_mean_1[episode_idx, :, 1], latent_logvar_1[episode_idx, :, 1]
     c_1, c_11 = latent_mean_1[episode_idx, :, 2], latent_logvar_1[episode_idx, :, 2]
+    d_1, d_11 = latent_mean_1[episode_idx, :, 3], latent_logvar_1[episode_idx, :, 3]
+    e_1, e_11 = latent_mean_1[episode_idx, :, 4], latent_logvar_1[episode_idx, :, 4]
 
     a_2, a_22 = latent_mean_2[episode_idx, :, 0], latent_logvar_2[episode_idx, :, 0]
     b_2, b_22 = latent_mean_2[episode_idx, :, 1], latent_logvar_2[episode_idx, :, 1]
     c_2, c_22 = latent_mean_2[episode_idx, :, 2], latent_logvar_2[episode_idx, :, 2]
+    d_2, d_22 = latent_mean_2[episode_idx, :, 3], latent_logvar_2[episode_idx, :, 3]
+    e_2, e_22 = latent_mean_2[episode_idx, :, 4], latent_logvar_2[episode_idx, :, 4]
 
     a_3, a_33 = latent_mean_3[episode_idx, :, 0], latent_logvar_3[episode_idx, :, 0]
     b_3, b_33 = latent_mean_3[episode_idx, :, 1], latent_logvar_3[episode_idx, :, 1]
     c_3, c_33 = latent_mean_3[episode_idx, :, 2], latent_logvar_3[episode_idx, :, 2]
+    d_3, d_33 = latent_mean_3[episode_idx, :, 3], latent_logvar_3[episode_idx, :, 3]
+    e_3, e_33 = latent_mean_3[episode_idx, :, 4], latent_logvar_3[episode_idx, :, 4]
 
     plt.figure()
     plt.plot(a_0, color='red')
-    plt.plot(a_1, color='green')
-    plt.plot(a_2, color='blue')
-    plt.plot(a_3, color='purple')
+    plt.plot(b_0, color='green')
+    plt.plot(c_0, color='blue')
+    plt.plot(d_0, color='blue')
+    plt.plot(e_0, color='blue')
+    plt.show(block=True)
+
+    plt.figure()
+    plt.plot(a_1, color='red')
+    plt.plot(b_1, color='green')
+    plt.plot(c_1, color='blue')
+    plt.plot(d_1, color='blue')
+    plt.plot(e_1, color='blue')
     plt.show(block=True)
 
     plt.figure()
     plt.plot(a_2, color='red')
     plt.plot(b_2, color='green')
     plt.plot(c_2, color='blue')
+    plt.plot(d_2, color='purple')
+    plt.plot(e_2, color='yellow')
+    plt.show(block=True)
+
+    plt.figure()
+    plt.plot(a_0, color='red')
+    plt.plot(a_1, color='green')
+    plt.plot(a_2, color='blue')
+    plt.plot(a_3, color='purple')
     plt.show(block=True)
 
     plt.figure()

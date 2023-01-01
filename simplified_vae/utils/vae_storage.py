@@ -34,8 +34,6 @@ class VAEBuffer(object):
         self.next_obs: torch.Tensor = torch.zeros((self.config.max_episode_num, self.config.max_episode_len, obs_dim)).to(self.device)
         self.dones: torch.Tensor = torch.zeros((self.config.max_episode_num, self.config.max_episode_len, 1)).to(self.device)
 
-        self.trajectory_lens: List = [0] * self.config.max_episode_num
-
     def insert(self, obs: np.ndarray,
                      actions: np.ndarray,
                      rewards: np.ndarray,
@@ -81,3 +79,15 @@ class VAEBuffer(object):
         next_obs = self.next_obs[start_idx:end_idx, :, :]
 
         return obs, actions, rewards, next_obs
+
+    def clear(self):
+
+        self.curr_insert_idx = 0
+        self.is_buffer_full = False
+
+        # buffers for completed episodes (stored on CPU) each buffer is batch_num X seq_len X internal_dim
+        self.obs: torch.Tensor = torch.zeros((self.config.max_episode_num, self.config.max_episode_len, self.obs_dim)).to(self.device)
+        self.actions: torch.Tensor = torch.zeros((self.config.max_episode_num, self.config.max_episode_len, self.action_dim)).to(self.device)
+        self.rewards: torch.Tensor = torch.zeros((self.config.max_episode_num, self.config.max_episode_len, 1)).to(self.device)
+        self.next_obs: torch.Tensor = torch.zeros((self.config.max_episode_num, self.config.max_episode_len, self.obs_dim)).to(self.device)
+        self.dones: torch.Tensor = torch.zeros((self.config.max_episode_num, self.config.max_episode_len, 1)).to(self.device)
