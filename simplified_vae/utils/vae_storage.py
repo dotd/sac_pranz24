@@ -71,3 +71,13 @@ class VAEBuffer(object):
         next_obs = self.next_obs[trajectory_idx, :, :]
 
         return obs, actions, rewards, next_obs
+
+    def sample_section(self, start_idx: int, end_idx: int):
+
+        # select the rollouts we want Batch X seq_len X internal_dim
+        obs = self.obs[start_idx:end_idx, :, :]
+        actions = self.actions[start_idx:end_idx, :, :]
+        rewards = self.rewards[start_idx:end_idx, :, :]
+        next_obs = self.next_obs[start_idx:end_idx, :, :]
+
+        return obs, actions, rewards, next_obs
