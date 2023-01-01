@@ -4,11 +4,12 @@ import torch
 from torch.utils.tensorboard import SummaryWriter
 
 from simplified_vae.config.config import Config
-from simplified_vae.env.env_utils import sample_trajectory
+from simplified_vae.utils.env_utils import collect_train_trajectories, collect_test_trajectories
 from simplified_vae.env.stationary_cheetah_windvel_wrapper import StationaryCheetahWindVelEnv
 from simplified_vae.utils.losses import compute_state_reconstruction_loss, compute_reward_reconstruction_loss, compute_kl_loss
 from simplified_vae.models.vae import VAE
 from simplified_vae.utils.vae_storage import VAEBuffer
+from simplified_vae.utils.logging_utils import save_checkpoint
 
 
 class VAETrainer:
@@ -32,11 +33,11 @@ class VAETrainer:
 
         self.train_buffer: VAEBuffer = VAEBuffer(config=config.train_buffer, obs_dim=self.obs_dim, action_dim=self.action_dim)
         self.test_buffer: VAEBuffer = VAEBuffer(config=config.test_buffer, obs_dim=self.obs_dim, action_dim=self.action_dim)
-        self.best_reward = np.Inf
+        self.min_loss = np.Inf
 
     def train_model(self):
 
-        self.collect_train_trajectories()
+        collect_train_trajectories(self.config, self.env, self.train_buffer)
 
         for iter_idx in range(self.config.training.pretrain_iter):
 
@@ -56,26 +57,26 @@ class VAETrainer:
                       f'reward_loss = {reward_reconstruction_loss}, '
                       f'kl_loss = {kl_loss}')
 
-            curr_total_reward = state_reconstruction_loss + reward_reconstruction_loss + kl_loss
+            curr_total_loss = state_reconstruction_loss + reward_reconstruction_loss + kl_loss
 
-            if curr_total_reward <= self.best_reward:
-                self.best_reward = curr_total_reward
+            if curr_total_loss <= self.min_loss:
+                self.min_loss = curr_total_loss
                 is_best_result = True
             else:
                 is_best_result = False
 
             if iter_idx % self.config.training.save_freq or is_best_result:
 
-                torch.save({'iter_idx': iter_idx,
-                            'model_state': self.model.state_dict(),
-                            'optimizer_state': self.optimizer.state_dict(),
-                            'state_loss': state_reconstruction_loss.item(),
-                            'reward_loss': reward_reconstruction_loss.item(),
-                            'kl_loss': kl_loss}, self.logger.log_dir + f'ckpt_iter_{iter_idx}')
+                save_checkpoint(checkpoint_dir=self.logger.log_dir,
+                                model=self.model,
+                                optimizer=self.optimizer,
+                                loss=curr_total_loss,
+                                epoch_idx=iter_idx,
+                                is_best=is_best_result)
 
             if iter_idx % self.config.training.eval_freq == 0:
 
-                self.collect_test_trajectories()
+                collect_test_trajectories(self.config, self.env, self.test_buffer)
 
                 obs, actions, rewards, next_obs = self.test_buffer.sample_batch(batch_size=self.config.test_buffer.max_episode_num)
 
@@ -91,9 +92,6 @@ class VAETrainer:
                 self.logger.add_scalar('test/state_reconstruction_loss', state_reconstruction_loss, iter_idx)
                 self.logger.add_scalar('test/reward_reconstruction_loss', reward_reconstruction_loss, iter_idx)
                 self.logger.add_scalar('test/kl_loss', kl_loss, iter_idx)
-
-
-
 
     def train_iter(self, obs: torch.Tensor,
                          actions: torch.Tensor,
@@ -144,41 +142,4 @@ class VAETrainer:
             kl_loss = compute_kl_loss(latent_mean=latent_mean, latent_logvar=latent_logvar)
 
             return state_reconstruction_loss.item(), reward_reconstruction_loss.item(), kl_loss.item()
-
-
-    def collect_train_trajectories(self):
-
-        for trajectory_idx in range(self.config.train_buffer.max_episode_num):
-
-            if trajectory_idx % self.config.training.change_env_freq == 0:
-                self.env.set_task(task=None)
-                print(f'Train: Episode idx {trajectory_idx}/{self.config.train_buffer.max_episode_num}, task - {self.env.get_task()}')
-
-            obs, actions, rewards, next_obs, dones = sample_trajectory(env=self.env, max_env_steps=self.config.train_buffer.max_episode_len)
-
-            self.train_buffer.insert(obs=obs,
-                                     actions=actions,
-                                     rewards=rewards,
-                                     next_obs=next_obs,
-                                     dones=dones)
-
-    def collect_test_trajectories(self):
-
-        for trajectory_idx in range(self.config.test_buffer.max_episode_num):
-
-            self.env.set_task(task=None)
-
-            obs, actions, rewards, next_obs, dones = sample_trajectory(env=self.env, max_env_steps=self.config.test_buffer.max_episode_len)
-
-            self.test_buffer.insert(obs=obs,
-                                    actions=actions,
-                                    rewards=rewards,
-                                    next_obs=next_obs,
-                                    dones=dones)
-
-
-
-        # stop_time = time.time()
-        # elapsed_time = stop_time - start_time
-        # print(f'Took {elapsed_time} seconds to collect {episode_num} episodes')
 
