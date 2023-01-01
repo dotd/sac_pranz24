@@ -57,7 +57,10 @@ class RNNEncoder(nn.Module):
 
         return z
 
-    def forward(self, obs, actions, rewards, hidden_state = None):
+    def forward(self, obs: torch.Tensor,
+                      actions: torch.Tensor,
+                      rewards: torch.Tensor,
+                      hidden_state: torch.Tensor = None):
 
         """
         Actions, states, rewards should be given in form [sequence_len * batch_size * dim].
