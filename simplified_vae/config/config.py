@@ -43,6 +43,8 @@ class TrainingConfig(BaseModel):
     eval_freq: int = 50
     print_train_loss_freq = 50
 
+    save_freq: int = 50
+
 class TaskConfig(BaseModel):
 
     low_target_vel: float = 0.

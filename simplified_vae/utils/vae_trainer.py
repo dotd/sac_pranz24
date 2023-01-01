@@ -1,4 +1,5 @@
 import gym
+import numpy as np
 import torch
 from torch.utils.tensorboard import SummaryWriter
 
@@ -31,6 +32,7 @@ class VAETrainer:
 
         self.train_buffer: VAEBuffer = VAEBuffer(config=config.train_buffer, obs_dim=self.obs_dim, action_dim=self.action_dim)
         self.test_buffer: VAEBuffer = VAEBuffer(config=config.test_buffer, obs_dim=self.obs_dim, action_dim=self.action_dim)
+        self.best_reward = np.Inf
 
     def train_model(self):
 
@@ -54,6 +56,23 @@ class VAETrainer:
                       f'reward_loss = {reward_reconstruction_loss}, '
                       f'kl_loss = {kl_loss}')
 
+            curr_total_reward = state_reconstruction_loss + reward_reconstruction_loss + kl_loss
+
+            if curr_total_reward <= self.best_reward:
+                self.best_reward = curr_total_reward
+                is_best_result = True
+            else:
+                is_best_result = False
+
+            if iter_idx % self.config.training.save_freq or is_best_result:
+
+                torch.save({'iter_idx': iter_idx,
+                            'model_state': self.model.state_dict(),
+                            'optimizer_state': self.optimizer.state_dict(),
+                            'state_loss': state_reconstruction_loss.item(),
+                            'reward_loss': reward_reconstruction_loss.item(),
+                            'kl_loss': kl_loss}, self.logger.log_dir + f'ckpt_iter_{iter_idx}')
+
             if iter_idx % self.config.training.eval_freq == 0:
 
                 self.collect_test_trajectories()
@@ -72,6 +91,9 @@ class VAETrainer:
                 self.logger.add_scalar('test/state_reconstruction_loss', state_reconstruction_loss, iter_idx)
                 self.logger.add_scalar('test/reward_reconstruction_loss', reward_reconstruction_loss, iter_idx)
                 self.logger.add_scalar('test/kl_loss', kl_loss, iter_idx)
+
+
+
 
     def train_iter(self, obs: torch.Tensor,
                          actions: torch.Tensor,
