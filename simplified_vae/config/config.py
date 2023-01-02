@@ -42,8 +42,10 @@ class TrainingConfig(BaseModel):
     reward_reconstruction_loss_weight: float = 1.0
     kl_loss_weight: float = 0.1
     pretrain_iter = 100000
-    use_kl_poterioir_loss: bool = False
+
+    use_kl_posterior_loss: bool = False
     use_stationary_trajectories: bool = False
+
     env_change_freq: int = 100
     eval_freq: int = 50
     print_train_loss_freq = 50

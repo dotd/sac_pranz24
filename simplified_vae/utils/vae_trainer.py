@@ -143,7 +143,7 @@ class VAETrainer:
         state_reconstruction_loss = compute_state_reconstruction_loss(next_obs_preds, next_obs_d)
         reward_reconstruction_loss = compute_reward_reconstruction_loss(rewards_pred, rewards_d)
 
-        if self.config.training.use_kl_poterioir_loss:
+        if self.config.training.use_kl_posterior_loss:
             kl_loss = compute_kl_loss_with_posterior(latent_mean=latent_mean, latent_logvar=latent_logvar)
         else:
             kl_loss = compute_kl_loss(latent_mean=latent_mean, latent_logvar=latent_logvar)
