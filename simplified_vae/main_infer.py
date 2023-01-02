@@ -32,6 +32,7 @@ def main():
 
     # checkpoint_path = 'runs/2023-01-01_11-55-39_VAE/model_best.pth.tar'
     checkpoint_path = 'runs/2023-01-02_09-12-57_VAE/model_best.pth.tar'
+    # checkpoint_path = 'runs/2023-01-02_11-54-10_VAE/model_best.pth.tar'
 
     model, epoch, loss = load_checkpoint(checkpoint_path=checkpoint_path, model=model, optimizer=None)
 
@@ -159,8 +160,8 @@ def main():
 
     plt.figure()
     plt.plot(a_0, color='red')
-    plt.plot(a_1, color='green')
-    plt.plot(a_2, color='blue')
+    # plt.plot(a_1, color='green')
+    # plt.plot(a_2, color='blue')
     plt.plot(a_3, color='purple')
     plt.show(block=True)
 

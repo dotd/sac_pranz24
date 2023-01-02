@@ -68,4 +68,4 @@ class VAE(nn.Module):
         next_obs_preds = self.state_decoder(latent_sample, obs, actions)
         rewards_pred = self.reward_decoder(latent_sample, obs, actions, next_obs)
 
-        return next_obs_preds, rewards_pred, latent_mean, latent_logvar, None
+        return next_obs_preds, rewards_pred, latent_mean, latent_logvar

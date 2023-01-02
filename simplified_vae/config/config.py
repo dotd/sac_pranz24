@@ -34,6 +34,11 @@ class RewardDecoderConfig(BaseModel):
     layers = [64, 32]
 
 
+class TaskDecoderConfig(BaseModel):
+
+    layers = [64, 32]
+
+
 class TrainingConfig(BaseModel):
 
     lr: float = 0.001
@@ -81,11 +86,17 @@ class TestBufferConfig(BufferConfig):
 
 class ModelConfig(BaseModel):
 
-    use_rnn_model: bool = True
+    use_rnn_model: bool = False
 
     encoder: EncoderConfig = EncoderConfig()
     state_decoder: StateDecoderConfig = StateDecoderConfig()
     reward_decoder: RewardDecoderConfig = RewardDecoderConfig()
+    task_decoder: TaskDecoderConfig = TaskDecoderConfig()
+
+
+class ClusteringConfig(BaseModel):
+
+    clusters_num = 1000
 
 
 class Config:
@@ -102,4 +113,5 @@ class Config:
     train_buffer: TrainBufferConfig = TrainBufferConfig()
     test_buffer: TestBufferConfig = TestBufferConfig()
 
+    clustering: ClusteringConfig = ClusteringConfig()
 

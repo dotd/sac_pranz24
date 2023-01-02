@@ -14,3 +14,4 @@ class AE(nn.Module):
 
         super(AE, self).__init__()
 
+        self.encoder
