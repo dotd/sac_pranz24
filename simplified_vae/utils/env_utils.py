@@ -122,7 +122,7 @@ def collect_stationary_trajectories(env: Union[gym.Env,
 
     for trajectory_idx in range(episode_num):
 
-        if trajectory_idx % env_change_freq == 0:
+        if trajectory_idx % env_change_freq == 0 and trajectory_idx > 0:
             env.set_task(task=None)
 
         if trajectory_idx % 100 == 0 and trajectory_idx > 0:
