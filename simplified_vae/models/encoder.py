@@ -14,6 +14,7 @@ class Encoder(nn.Module):
                  state_dim: int = None,
                  action_dim: int = None,
                  reward_dim: int = 1):
+
         super(Encoder, self).__init__()
 
         self.config: Config = config
@@ -26,10 +27,8 @@ class Encoder(nn.Module):
                                self.encoder_config.action_embed_dim + \
                                self.encoder_config.reward_embed_dim
 
-        self.vae_latent_dim = self.encoder_config.vae_hidden_dim
-        self.recurrent_hidden_dim = self.encoder_config.recurrent_hidden_dim
-
         self.activation = F.relu
+
         self.state_encoder = nn.Linear(state_dim, self.encoder_config.obs_embed_dim)
         self.action_encoder = nn.Linear(action_dim, self.encoder_config.action_embed_dim)
         self.reward_encoder = nn.Linear(reward_dim, self.encoder_config.reward_embed_dim)
@@ -37,12 +36,12 @@ class Encoder(nn.Module):
         curr_input_dim = self.total_input_dim
         self.fc_layers = nn.ModuleList([])
         for i in range(len(self.config.model.encoder.additional_embed_layers)):
-            self.fc_layers.append(nn.Linear(curr_input_dim, self.decoder_config.layers[i]))
-            curr_input_dim = self.decoder_config.layers[i]
+            self.fc_layers.append(nn.Linear(curr_input_dim, self.encoder_config.additional_embed_layers[i]))
+            curr_input_dim = self.encoder_config.additional_embed_layers[i]
 
         # output layer
-        self.fc_mu = nn.Linear(self.encoder_config.recurrent_hidden_dim, self.vae_latent_dim)
-        self.fc_logvar = nn.Linear(self.encoder_config.recurrent_hidden_dim, self.vae_latent_dim)
+        self.fc_mu = nn.Linear(curr_input_dim, self.encoder_config.vae_hidden_dim)
+        self.fc_logvar = nn.Linear(curr_input_dim, self.encoder_config.vae_hidden_dim)
 
     def reparameterize(self, mu, logvar):
 

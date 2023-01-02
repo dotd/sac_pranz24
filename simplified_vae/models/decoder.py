@@ -88,4 +88,33 @@ class RewardDecoder(nn.Module):
         return self.fc_out(h)
 
 
+class TaskDecoder(nn.Module):
+    def __init__(self,
+                 config: Config):
 
+        super(TaskDecoder, self).__init__()
+
+        self.config = config
+        self.encoder_config = config.model.encoder
+        self.decoder_config = config.model.task_decoder
+        self.activation = F.relu
+
+        curr_input_dim = self.encoder_config.vae_hidden_dim + \
+                         self.encoder_config.action_embed_dim + \
+                         self.encoder_config.obs_embed_dim * 2
+
+        self.fc_layers = nn.ModuleList([])
+        for i in range(len(self.decoder_config.layers)):
+            self.fc_layers.append(nn.Linear(curr_input_dim, self.decoder_config.layers[i]))
+            curr_input_dim = self.decoder_config.layers[i]
+
+        self.fc_out = nn.Linear(curr_input_dim, 1)
+
+    def forward(self, latent_state):
+
+        h = latent_state
+
+        for i in range(len(self.fc_layers)):
+            h = self.activation(self.fc_layers[i](h))
+
+        return self.fc_out(h)
