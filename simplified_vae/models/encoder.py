@@ -7,6 +7,74 @@ from torch.nn import functional as F
 from simplified_vae.config.config import EncoderConfig, Config
 
 
+class Encoder(nn.Module):
+
+    def __init__(self,
+                 config: Config,
+                 state_dim: int = None,
+                 action_dim: int = None,
+                 reward_dim: int = 1):
+        super(Encoder, self).__init__()
+
+        self.config: Config = config
+        self.encoder_config: EncoderConfig = config.model.encoder
+        self.state_dim: int = state_dim
+        self.action_dim: int = action_dim
+        self.reward_dim: int = reward_dim
+
+        self.total_input_dim = self.encoder_config.obs_embed_dim + \
+                               self.encoder_config.action_embed_dim + \
+                               self.encoder_config.reward_embed_dim
+
+        self.vae_latent_dim = self.encoder_config.vae_hidden_dim
+        self.recurrent_hidden_dim = self.encoder_config.recurrent_hidden_dim
+
+        self.activation = F.relu
+        self.state_encoder = nn.Linear(state_dim, self.encoder_config.obs_embed_dim)
+        self.action_encoder = nn.Linear(action_dim, self.encoder_config.action_embed_dim)
+        self.reward_encoder = nn.Linear(reward_dim, self.encoder_config.reward_embed_dim)
+
+        curr_input_dim = self.total_input_dim
+        self.fc_layers = nn.ModuleList([])
+        for i in range(len(self.config.model.encoder.additional_embed_layers)):
+            self.fc_layers.append(nn.Linear(curr_input_dim, self.decoder_config.layers[i]))
+            curr_input_dim = self.decoder_config.layers[i]
+
+        # output layer
+        self.fc_mu = nn.Linear(self.encoder_config.recurrent_hidden_dim, self.vae_latent_dim)
+        self.fc_logvar = nn.Linear(self.encoder_config.recurrent_hidden_dim, self.vae_latent_dim)
+
+    def reparameterize(self, mu, logvar):
+
+        std = torch.exp(0.5 * logvar)
+        noise = torch.randn_like(std).to(self.config.device)
+        z = mu + noise * std
+
+        return z
+
+    def forward(self, obs: torch.Tensor,
+                      actions: torch.Tensor,
+                      rewards: torch.Tensor):
+
+        # shape should be: batch_size X sequence_len X hidden_size
+
+        obs_embed = self.activation(self.state_encoder(obs))
+        actions_embed = self.activation(self.action_encoder(actions))
+        reward_embed = self.activation(self.reward_encoder(rewards))
+        h = torch.cat((actions_embed, obs_embed, reward_embed), dim=2)
+
+        for i in range(len(self.fc_layers)):
+            h = self.activation(self.fc_layers[i](h))
+
+        # outputs
+        latent_mean = self.fc_mu(h)
+        latent_logvar = self.fc_logvar(h)
+
+        latent_sample = self.reparameterize(latent_mean, latent_logvar)
+
+        return latent_sample, latent_mean, latent_logvar
+
+
 class RNNEncoder(nn.Module):
 
     def __init__(self,
@@ -18,7 +86,7 @@ class RNNEncoder(nn.Module):
         super(RNNEncoder, self).__init__()
 
         self.config: Config = config
-        self.encoder_config: EncoderConfig = config.encoder
+        self.encoder_config: EncoderConfig = config.model.encoder
         self.state_dim: int = state_dim
         self.action_dim: int = action_dim
         self.reward_dim: int = reward_dim
@@ -49,7 +117,7 @@ class RNNEncoder(nn.Module):
         self.fc_mu = nn.Linear(self.encoder_config.recurrent_hidden_dim, self.vae_latent_dim)
         self.fc_logvar = nn.Linear(self.encoder_config.recurrent_hidden_dim, self.vae_latent_dim)
 
-    def reparameterise(self, mu, logvar):
+    def reparameterize(self, mu, logvar):
 
         std = torch.exp(0.5 * logvar)
         noise = torch.randn_like(std).to(self.config.device)
@@ -84,6 +152,6 @@ class RNNEncoder(nn.Module):
         latent_mean = self.fc_mu(gru_h)
         latent_logvar = self.fc_logvar(gru_h)
 
-        latent_sample = self.reparameterise(latent_mean, latent_logvar)
+        latent_sample = self.reparameterize(latent_mean, latent_logvar)
 
         return latent_sample, latent_mean, latent_logvar, output

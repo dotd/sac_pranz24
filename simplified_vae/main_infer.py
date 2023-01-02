@@ -5,8 +5,8 @@ import torch
 import numpy as np
 
 from simplified_vae.config.config import Config
-from simplified_vae.utils.env_utils import make_stationary_env, sample_stationary_trajectory, collect_stationary_trajectories
-from simplified_vae.models.vae import VAE
+from simplified_vae.utils.env_utils import make_stationary_env, collect_stationary_trajectories
+from simplified_vae.models.vae import VAE, RNNVAE
 from simplified_vae.utils.logging_utils import load_checkpoint
 from simplified_vae.utils.vae_storage import VAEBuffer
 
@@ -26,11 +26,12 @@ def main():
     trajectories_num = 120
 
     # Init model
-    model: VAE = VAE(config=config,
+    model: RNNVAE = RNNVAE(config=config,
                      obs_dim=obs_dim,
                      action_dim=action_dim)
 
-    checkpoint_path = 'runs/2023-01-01_11-55-39_VAE/model_best.pth.tar'
+    # checkpoint_path = 'runs/2023-01-01_11-55-39_VAE/model_best.pth.tar'
+    checkpoint_path = 'runs/2023-01-02_09-12-57_VAE/model_best.pth.tar'
 
     model, epoch, loss = load_checkpoint(checkpoint_path=checkpoint_path, model=model, optimizer=None)
 
@@ -43,7 +44,8 @@ def main():
     collect_stationary_trajectories(env=env,
                                     buffer=test_buffer,
                                     episode_num=trajectories_num,
-                                    episode_len=config.train_buffer.max_episode_len)
+                                    episode_len=config.train_buffer.max_episode_len,
+                                    env_change_freq=1)
 
     # collect episode from Task_1
     env.set_task(task=None)
@@ -52,7 +54,8 @@ def main():
     collect_stationary_trajectories(env=env,
                                     buffer=test_buffer,
                                     episode_num=trajectories_num,
-                                    episode_len=config.train_buffer.max_episode_len)
+                                    episode_len=config.train_buffer.max_episode_len,
+                                    env_change_freq=1)
 
     # Get obs encodings
     model.eval()
@@ -137,24 +140,21 @@ def main():
     plt.plot(a_0, color='red')
     plt.plot(b_0, color='green')
     plt.plot(c_0, color='blue')
-    plt.plot(d_0, color='blue')
-    plt.plot(e_0, color='blue')
+    plt.plot(d_0, color='purple')
+    plt.plot(e_0, color='orange')
     plt.show(block=True)
 
     plt.figure()
     plt.plot(a_1, color='red')
     plt.plot(b_1, color='green')
     plt.plot(c_1, color='blue')
-    plt.plot(d_1, color='blue')
-    plt.plot(e_1, color='blue')
+    plt.plot(d_1, color='purple')
+    plt.plot(e_1, color='orange')
     plt.show(block=True)
 
     plt.figure()
-    plt.plot(a_2, color='red')
-    plt.plot(b_2, color='green')
-    plt.plot(c_2, color='blue')
-    plt.plot(d_2, color='purple')
-    plt.plot(e_2, color='yellow')
+    plt.plot(a_0, color='red')
+    plt.plot(a_2, color='blue')
     plt.show(block=True)
 
     plt.figure()

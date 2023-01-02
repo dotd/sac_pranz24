@@ -1,3 +1,6 @@
+from typing import List
+
+import numpy as np
 import pydantic
 import torch
 import datetime
@@ -16,6 +19,7 @@ class EncoderConfig(BaseModel):
     obs_embed_dim = 32
     reward_embed_dim = 16
 
+    additional_embed_layers: List = [64, 32, 16]
     recurrent_hidden_dim = 128
     vae_hidden_dim = 5
 
@@ -38,8 +42,9 @@ class TrainingConfig(BaseModel):
     reward_reconstruction_loss_weight: float = 1.0
     kl_loss_weight: float = 0.1
     pretrain_iter = 100000
-
-    change_env_freq: int = 100
+    use_kl_poterioir_loss: bool = False
+    use_stationary_trajectories: bool = False
+    env_change_freq: int = 100
     eval_freq: int = 50
     print_train_loss_freq = 50
 
@@ -72,6 +77,15 @@ class TestBufferConfig(BufferConfig):
     max_episode_num: int = 50
 
 
+class ModelConfig(BaseModel):
+
+    use_rnn_model: bool = True
+
+    encoder: EncoderConfig = EncoderConfig()
+    state_decoder: StateDecoderConfig = StateDecoderConfig()
+    reward_decoder: RewardDecoderConfig = RewardDecoderConfig()
+
+
 class Config:
 
     env_name: str = 'HalfCheetah-v3'
@@ -80,10 +94,8 @@ class Config:
 
     logger = SummaryWriter(f'runs/{datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}_VAE')
 
+    model: ModelConfig = ModelConfig()
     training: TrainingConfig = TrainingConfig()
-    encoder: EncoderConfig = EncoderConfig()
-    state_decoder: StateDecoderConfig = StateDecoderConfig()
-    reward_decoder: RewardDecoderConfig = RewardDecoderConfig()
     task: TaskConfig = TaskConfig()
     train_buffer: TrainBufferConfig = TrainBufferConfig()
     test_buffer: TestBufferConfig = TestBufferConfig()
