@@ -41,7 +41,6 @@ class StationaryCheetahWindVelEnv(Wrapper):
         else:
             self.task = task
 
-
     def step(self, action):
 
         pos_before = self.unwrapped.sim.data.qpos[0]

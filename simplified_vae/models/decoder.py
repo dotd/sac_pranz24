@@ -15,8 +15,8 @@ class StateTransitionDecoder(nn.Module):
         super(StateTransitionDecoder, self).__init__()
 
         self.config = config
-        self.encoder_config = config.encoder
-        self.decoder_config = config.state_decoder
+        self.encoder_config = config.model.encoder
+        self.decoder_config = config.model.state_decoder
 
         self.state_encoder = nn.Linear(obs_dim, self.encoder_config.obs_embed_dim)
         self.action_encoder = nn.Linear(action_dim, self.encoder_config.action_embed_dim)
@@ -55,8 +55,8 @@ class RewardDecoder(nn.Module):
         super(RewardDecoder, self).__init__()
 
         self.config = config
-        self.encoder_config = config.encoder
-        self.decoder_config = config.reward_decoder
+        self.encoder_config = config.model.encoder
+        self.decoder_config = config.model.reward_decoder
 
         # get state as input and predict reward prob
         self.state_encoder = nn.Linear(obs_dim, self.encoder_config.obs_embed_dim)

@@ -4,6 +4,7 @@ import gym
 import numpy as np
 from gym import Env
 import torch
+from scipy.stats import randint
 
 from simplified_vae.config.config import Config
 from simplified_vae.env.stationary_cheetah_windvel_wrapper import StationaryCheetahWindVelEnv
@@ -48,12 +49,13 @@ def sample_stationary_trajectory(env: Union[Env, StationaryCheetahWindVelEnv], m
            np.asarray(all_dones)[:, np.newaxis]
 
 
-def sample_non_stationary_trajectory(env: Union[Env, StationaryCheetahWindVelEnv], max_env_steps):
+def sample_non_stationary_trajectory(env: Union[Env, StationaryCheetahWindVelEnv], max_env_steps, rg):
 
     # initialize env for the beginning of a new rollout
     obs = env.reset()
 
-    change_task_idx = np.random.randint(0, max_env_steps) # TODO change to rvs()
+    change_task_idx_rvs = randint(0, max_env_steps)
+    change_task_idx = change_task_idx_rvs.rvs(random_state=rg)
 
     # init vars
     all_obs, all_actions, all_rewards, all_next_obs, all_dones = [], [], [], [], []
@@ -111,46 +113,20 @@ def make_stationary_env(config: Config):
     return env
 
 
-def collect_stationary_train_trajectories(config: Config, env: Union[gym.Env, StationaryCheetahWindVelEnv], train_buffer: VAEBuffer):
-
-    for trajectory_idx in range(config.train_buffer.max_episode_num):
-
-        if trajectory_idx % config.training.change_env_freq == 0:
-            env.set_task(task=None)
-            print(f'Train: Episode idx {trajectory_idx}/{config.train_buffer.max_episode_num}, task - {env.get_task()}')
-
-        obs, actions, rewards, next_obs, dones = sample_stationary_trajectory(env=env, max_env_steps=config.train_buffer.max_episode_len)
-
-        train_buffer.insert(obs=obs,
-                            actions=actions,
-                            rewards=rewards,
-                            next_obs=next_obs,
-                            dones=dones)
-
-
-def collect_stationary_test_trajectories(config: Config, env: Union[gym.Env, StationaryCheetahWindVelEnv], buffer: VAEBuffer):
-
-    for trajectory_idx in range(config.test_buffer.max_episode_num):
-
-        env.set_task(task=None)
-
-        obs, actions, rewards, next_obs, dones = sample_stationary_trajectory(env=env, max_env_steps=config.test_buffer.max_episode_len)
-
-        buffer.insert(obs=obs,
-                      actions=actions,
-                      rewards=rewards,
-                      next_obs=next_obs,
-                      dones=dones)
-
-
 def collect_stationary_trajectories(env: Union[gym.Env,
                                     StationaryCheetahWindVelEnv],
                                     buffer: VAEBuffer,
                                     episode_num: int,
-                                    episode_len: int):
+                                    episode_len: int,
+                                    env_change_freq: int):
 
     for trajectory_idx in range(episode_num):
-        env.set_task(task=None)
+
+        if trajectory_idx % env_change_freq == 0:
+            env.set_task(task=None)
+
+        if trajectory_idx % 100 == 0:
+            print(f'Train: Episode idx {trajectory_idx}/{episode_num}, task - {env.get_task()}')
 
         obs, actions, rewards, next_obs, dones = sample_stationary_trajectory(env=env, max_env_steps=episode_len)
 
@@ -160,3 +136,25 @@ def collect_stationary_trajectories(env: Union[gym.Env,
                       next_obs=next_obs,
                       dones=dones)
 
+
+def collect_non_stationary_trajectories(env: Union[gym.Env,
+                                        StationaryCheetahWindVelEnv],
+                                        buffer: VAEBuffer,
+                                        episode_num: int,
+                                        episode_len: int,
+                                        rg: np.random.RandomState):
+
+    for trajectory_idx in range(episode_num):
+
+        if trajectory_idx % 100 == 0:
+            print(f'Train: Episode idx {trajectory_idx}/{episode_num}')
+
+        obs, actions, rewards, next_obs, dones = sample_non_stationary_trajectory(env=env,
+                                                                                  max_env_steps=episode_len,
+                                                                                  rg=rg)
+
+        buffer.insert(obs=obs,
+                      actions=actions,
+                      rewards=rewards,
+                      next_obs=next_obs,
+                      dones=dones)
