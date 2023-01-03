@@ -81,7 +81,7 @@ class TrainBufferConfig(BufferConfig):
 class TestBufferConfig(BufferConfig):
 
     max_episode_len: int = 100
-    max_episode_num: int = 50
+    max_episode_num: int = 5000
 
 
 class ModelConfig(BaseModel):
@@ -96,7 +96,7 @@ class ModelConfig(BaseModel):
 
 class ClusteringConfig(BaseModel):
 
-    clusters_num = 1000
+    clusters_num = 50
 
 
 class Config:
