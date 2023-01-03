@@ -158,3 +158,12 @@ def collect_non_stationary_trajectories(env: Union[gym.Env,
                       rewards=rewards,
                       next_obs=next_obs,
                       dones=dones)
+
+
+def set_seed(seed: int):
+
+    torch.manual_seed(seed)
+    np.random.seed(seed)
+    rg = np.random.RandomState(seed=seed)
+
+    return rg
