@@ -40,5 +40,6 @@ def create_transition_matrix(config: Config,
 
         np.add.at(transition_mat, (transitions[:, 0], transitions[:, 1]), 1)
 
+    transition_mat /= np.sum(transition_mat, axis=1)
     return transition_mat
 
