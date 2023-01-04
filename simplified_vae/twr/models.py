@@ -127,8 +127,5 @@ class TWRNET(nn.Module):
         return kl
 
 
-
-
-
     def forward(self):
         pass
