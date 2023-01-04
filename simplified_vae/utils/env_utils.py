@@ -49,7 +49,7 @@ def sample_stationary_trajectory(env: Union[Env, StationaryCheetahWindVelEnv], m
            np.asarray(all_dones)[:, np.newaxis]
 
 
-def sample_non_stationary_trajectory(env: Union[Env, StationaryCheetahWindVelEnv], max_env_steps, rg):
+def sample_non_stationary_trajectory(env: Union[Env, StationaryCheetahWindVelEnv], max_env_steps: object, rg: object) -> object:
 
     # initialize env for the beginning of a new rollout
     obs = env.reset()

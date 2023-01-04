@@ -1,15 +1,14 @@
-from simplified_vae.utils.env_utils import make_stationary_env
-from twr.config import TWRConfig
-
 import torch
 import numpy as np
 
-from twr.twr_trainer import TWRTrainer
+from simplified_vae.twr.twr_trainer import TWRTrainer
+from simplified_vae.config.config import Config
+from simplified_vae.utils.env_utils import make_stationary_env
 
 
 def main():
 
-    config = TWRConfig()
+    config = Config()
     torch.manual_seed(config.seed)
     np.random.seed(config.seed)
 
