@@ -1,13 +1,42 @@
+from typing import List
+
 import numpy as np
 import torch
 import torch.nn as nn
+from torch.nn import functional as F
 from torch.distributions.multivariate_normal import MultivariateNormal
 from simplified_vae.config.config import Config
 
 
 class MLP(nn.Module):
 
-    pass
+    def __init__(self,
+                 input_dim: int,
+                 output_dim: int,
+                 layers: List):
+
+        super().__init__()
+
+        self.activation = F.relu
+        self.input_dim = input_dim
+        self.ouput_dim = output_dim
+        self.layers = layers
+
+        curr_input_dim = input_dim
+
+        self.fc_layers = nn.ModuleList([])
+        for i in range(len(self.layers)):
+            self.fc_layers.append(nn.Linear(curr_input_dim, self.layers[i]))
+            curr_input_dim = self.layers[i]
+
+        self.fc_out = nn.Linear(curr_input_dim, output_dim)
+
+    def forward(self, x):
+
+        for i in range(len(self.fc_layers)):
+            x = self.activation(self.fc_layers[i](x))
+
+        return self.fc_out(x)
 
 
 class TWRNET(nn.Module):
@@ -24,7 +53,9 @@ class TWRNET(nn.Module):
         self.pre, self.post, self.log_std = self._init_distribution_estimation_network()
 
         # next state proposition
-        self.next_state = MLP()
+        self.next_state = MLP(input_dim=self.obs_shape + self.config.twr.latents_shape,
+                              output_dim=self.obs_shape,
+                              layers=self.config.twr.layers)
 
     def _init_distribution_estimation_network(self):
 
