@@ -125,6 +125,8 @@ class TWRConfig(BaseModel):
     train_eps: float = 1e-7
     seed: int = 0
 
+    layers: List = [32, 32, 32, 32, 32]
+
 class Config:
 
     env_name: str = 'HalfCheetah-v3'

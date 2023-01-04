@@ -28,8 +28,6 @@ class TWRTrainer:
         self.model = TWRNET(config=config, obs_shape=self.obs_shape)
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=config.twr.lr, eps=config.twr.train_eps)
 
-        self.train_buffer: VAEBuffer = VAEBuffer(config=config.train_buffer, obs_dim=self.obs_shape, action_dim=self.obs_shape)
-        self.test_buffer: VAEBuffer = VAEBuffer(config=config.test_buffer, obs_dim=self.obs_shape, action_dim=self.obs_shape)
         self.min_loss = np.Inf
 
         write_config(config=config, logdir=self.logger.log_dir)
@@ -44,6 +42,7 @@ class TWRTrainer:
         dones = sample_non_stationary_trajectory(env=self.env,
                                                  max_env_steps=self.config.train_buffer.max_episode_len,
                                                  rg=self.rg)
+        signal = obs[0, , :, :, np.newaxis]
 
         kl_list = []  # list of KL divergences
         llr_list = []  # list of log-likelihood ratios
