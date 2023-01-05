@@ -22,6 +22,7 @@ class Encoder(nn.Module):
         self.state_dim: int = state_dim
         self.action_dim: int = action_dim
         self.reward_dim: int = reward_dim
+        self.latent_dim = self.encoder_config.vae_hidden_dim
 
         self.total_input_dim = self.encoder_config.obs_embed_dim + \
                                self.encoder_config.action_embed_dim + \
@@ -94,7 +95,7 @@ class RNNEncoder(nn.Module):
                                    self.encoder_config.action_embed_dim + \
                                    self.encoder_config.reward_embed_dim
 
-        self.vae_latent_dim = self.encoder_config.vae_hidden_dim
+        self.latent_dim = self.encoder_config.vae_hidden_dim
         self.recurrent_hidden_dim = self.encoder_config.recurrent_hidden_dim
 
         self.activation = F.relu
@@ -113,8 +114,8 @@ class RNNEncoder(nn.Module):
                 nn.init.orthogonal_(param)
 
         # output layer
-        self.fc_mu = nn.Linear(self.encoder_config.recurrent_hidden_dim, self.vae_latent_dim)
-        self.fc_logvar = nn.Linear(self.encoder_config.recurrent_hidden_dim, self.vae_latent_dim)
+        self.fc_mu = nn.Linear(self.encoder_config.recurrent_hidden_dim, self.latent_dim)
+        self.fc_logvar = nn.Linear(self.encoder_config.recurrent_hidden_dim, self.latent_dim)
 
     def reparameterize(self, mu, logvar):
 

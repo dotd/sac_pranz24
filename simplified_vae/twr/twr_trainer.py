@@ -9,7 +9,7 @@ from simplified_vae.env.stationary_cheetah_windvel_wrapper import StationaryChee
 from simplified_vae.twr.losses import calc_twr_loss
 from simplified_vae.utils.env_utils import sample_non_stationary_trajectory
 from simplified_vae.utils.logging_utils import write_config
-from simplified_vae.utils.vae_storage import VAEBuffer
+from simplified_vae.utils.vae_storage import Buffer
 from simplified_vae.twr.models import TWRNET
 
 
@@ -42,7 +42,7 @@ class TWRTrainer:
         dones = sample_non_stationary_trajectory(env=self.env,
                                                  max_env_steps=self.config.train_buffer.max_episode_len,
                                                  rg=self.rg)
-        signal = obs[0, , :, :, np.newaxis]
+        signal = obs[0, :, :, np.newaxis]
 
         kl_list = []  # list of KL divergences
         llr_list = []  # list of log-likelihood ratios
@@ -90,21 +90,21 @@ class TWRTrainer:
                    rewards: torch.Tensor,
                    next_obs: torch.Tensor):
 
-        self.model.train()
-        self.optimizer.zero_grad()
-
-        # pre_time_stamps, post_time_stamps, previous_obs, obs, update_0=1):
-        pre_loss = calc_twr_loss(pre_time_stamps, previous_obs, obs, pre_change_loss=1)
-        post_loss = calc_twr_loss(post_time_stamps, previous_obs, obs, pre_change_loss=0)
-
+        # self.model.train()
         # self.optimizer.zero_grad()
-        if np.random.rand() < update_0:
-            pre_loss.backward(retain_graph=True)
-
-        post_loss.backward(retain_graph=True)
-        self.optimizer.step()
-
-        return pre_loss, post_loss
+        #
+        # # pre_time_stamps, post_time_stamps, previous_obs, obs, update_0=1):
+        # pre_loss = calc_twr_loss(pre_time_stamps, previous_obs, obs, pre_change_loss=1)
+        # post_loss = calc_twr_loss(post_time_stamps, previous_obs, obs, pre_change_loss=0)
+        #
+        # # self.optimizer.zero_grad()
+        # if np.random.rand() < update_0:
+        #     pre_loss.backward(retain_graph=True)
+        #
+        # post_loss.backward(retain_graph=True)
+        # self.optimizer.step()
+        #
+        # return pre_loss, post_loss
 
         # self.optimizer.zero_grad()
         # # total_loss.backward()

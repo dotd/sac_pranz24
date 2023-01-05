@@ -9,6 +9,7 @@ def main():
 
     episode_len = 150
     dist_0 = multivariate_normal(mean=[1, 2], cov=[[1, 0], [0, 2]])
+    # dist_1 = multivariate_normal(mean=[1, 2], cov=[[1, 0], [0, 2]])
     dist_1 = multivariate_normal(mean=[3, 4], cov=[[3, 0], [0, 4]])
 
     dist_0_samples = dist_0.rvs(size=episode_len // 2)

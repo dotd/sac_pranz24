@@ -75,7 +75,7 @@ class BufferConfig(BaseModel):
 class TrainBufferConfig(BufferConfig):
 
     max_episode_len: int = 100
-    max_episode_num: int = 5000
+    max_episode_num: int = 500
 
 
 class TestBufferConfig(BufferConfig):
@@ -87,6 +87,8 @@ class TestBufferConfig(BufferConfig):
 class ModelConfig(BaseModel):
 
     use_rnn_model: bool = False
+    type: str = 'RNNVAE'
+    checkpoint_path = 'runs/2023-01-02_09-12-57_VAE/model_best.pth.tar'
 
     encoder: EncoderConfig = EncoderConfig()
     state_decoder: StateDecoderConfig = StateDecoderConfig()
@@ -94,8 +96,11 @@ class ModelConfig(BaseModel):
     task_decoder: TaskDecoderConfig = TaskDecoderConfig()
 
 
-class ClusteringConfig(BaseModel):
+class CPDConfig(BaseModel):
 
+    # window_lens: List = [10, 20, 30]
+    window_lens: List = [10]
+    alpha_val: float = 0.5
     clusters_num = 50
 
 
@@ -127,6 +132,7 @@ class TWRConfig(BaseModel):
 
     layers: List = [32, 32, 32, 32, 32]
 
+
 class Config:
 
     env_name: str = 'HalfCheetah-v3'
@@ -135,11 +141,11 @@ class Config:
 
     logger = SummaryWriter(f'runs/{datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}_VAE')
 
+    cpd: CPDConfig = CPDConfig()
     model: ModelConfig = ModelConfig()
     training: TrainingConfig = TrainingConfig()
     task: TaskConfig = TaskConfig()
     train_buffer: TrainBufferConfig = TrainBufferConfig()
     test_buffer: TestBufferConfig = TestBufferConfig()
 
-    clustering: ClusteringConfig = ClusteringConfig()
     twr: TWRConfig = TWRConfig()

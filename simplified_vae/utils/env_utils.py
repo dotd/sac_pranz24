@@ -8,7 +8,7 @@ from scipy.stats import randint
 
 from simplified_vae.config.config import Config
 from simplified_vae.env.stationary_cheetah_windvel_wrapper import StationaryCheetahWindVelEnv
-from simplified_vae.utils.vae_storage import VAEBuffer
+from simplified_vae.utils.vae_storage import Buffer
 
 
 def sample_stationary_trajectory(env: Union[Env, StationaryCheetahWindVelEnv], max_env_steps):
@@ -115,7 +115,7 @@ def make_stationary_env(config: Config):
 
 def collect_stationary_trajectories(env: Union[gym.Env,
                                     StationaryCheetahWindVelEnv],
-                                    buffer: VAEBuffer,
+                                    buffer: Buffer,
                                     episode_num: int,
                                     episode_len: int,
                                     env_change_freq: int):
@@ -137,9 +137,8 @@ def collect_stationary_trajectories(env: Union[gym.Env,
                       dones=dones)
 
 
-def collect_non_stationary_trajectories(env: Union[gym.Env,
-                                        StationaryCheetahWindVelEnv],
-                                        buffer: VAEBuffer,
+def collect_non_stationary_trajectories(env: Union[gym.Env, StationaryCheetahWindVelEnv],
+                                        buffer: Buffer,
                                         episode_num: int,
                                         episode_len: int,
                                         rg: np.random.RandomState):
@@ -164,6 +163,3 @@ def set_seed(seed: int):
 
     torch.manual_seed(seed)
     np.random.seed(seed)
-    rg = np.random.RandomState(seed=seed)
-
-    return rg
