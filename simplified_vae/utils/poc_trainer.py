@@ -97,20 +97,30 @@ class POCTrainer:
 
         self.env.set_task(None)
         obs = self.env.reset()
+        prev_label = None
 
         while not done:
 
             action = self.env.action_space.sample()  # Sample random action
 
             next_obs, reward, done, _ = self.env.step(action)  # Step
-            episode_steps += 1
 
-            curr_label = self.clusterer.predict(obs)
-            next_label = self.clusterer.predict(next_obs)
+            if episode_steps > 0:
 
-            curr_cpd_estim = [cpd.update_transition(curr_label) for cpd in self.cpds]
+                # TODO embed to latent before clustering
+                curr_latent = self.model.encoder(obs=obs,
+                                                 actions=action,
+                                                 reward=reward,
+                                                 next_obs=next_obs)
+
+                curr_label = self.clusterer.predict(curr_latent)
+
+                curr_cpd_estim = [cpd.update_transition(prev_label, curr_label) for cpd in self.cpds]
 
             obs = next_obs
+            prev_label = curr_label
+            episode_steps += 1
+
 
 
 
