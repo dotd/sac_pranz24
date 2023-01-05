@@ -7,30 +7,29 @@ from simplified_vae.models.vae import RNNVAE, VAE
 from simplified_vae.utils.logging_utils import load_checkpoint
 
 
-def init_model(model_type: str,
-               checkpoint_path: str,
-               config: Config,
+def init_model(config: Config,
                obs_dim: int,
                action_dim: int):
 
     model = None
 
-    if model_type == 'RNNVAE':
+    if config.model.type == 'RNNVAE':
         model = RNNVAE(config=config,
                        obs_dim=obs_dim,
                        action_dim=action_dim)
-    elif model_type == 'VAE':
+
+    elif config.model.type == 'VAE':
         model = VAE(config=config,
                     obs_dim=obs_dim,
                     action_dim=action_dim)
 
-    elif model_type == 'AE':
+    elif config.model.type == 'AE':
         raise NotImplementedError
 
     else:
         raise NotImplementedError
 
-    model, epoch, loss = load_checkpoint(checkpoint_path=checkpoint_path, model=model, optimizer=None)
+    model, epoch, loss = load_checkpoint(checkpoint_path=config.model.checkpoint_path, model=model, optimizer=None)
 
     return model, epoch, loss
 

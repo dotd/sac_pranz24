@@ -7,7 +7,7 @@ from simplified_vae.config.config import Config
 from simplified_vae.cusum.cusum_utils import MarkovDistribution, run_cusum
 from simplified_vae.utils.env_utils import make_stationary_env, collect_stationary_trajectories, set_seed
 from simplified_vae.utils.model_utils import init_model, all_to_device
-from simplified_vae.utils.vae_storage import VAEBuffer
+from simplified_vae.utils.vae_storage import Buffer
 
 
 def main():
@@ -35,7 +35,7 @@ def main():
                                     action_dim=action_dim)
 
     # Init Buffer
-    test_buffer = VAEBuffer(config=config.test_buffer, obs_dim=obs_dim, action_dim=action_dim)
+    test_buffer = Buffer(config=config.test_buffer, obs_dim=obs_dim, action_dim=action_dim)
 
     # Collect episodes from Task_0
     env.set_task(task=None)

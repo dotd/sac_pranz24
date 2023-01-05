@@ -8,7 +8,7 @@ from simplified_vae.config.config import Config
 from simplified_vae.utils.env_utils import make_stationary_env, collect_stationary_trajectories
 from simplified_vae.models.vae import VAE, RNNVAE
 from simplified_vae.utils.logging_utils import load_checkpoint
-from simplified_vae.utils.vae_storage import VAEBuffer
+from simplified_vae.utils.vae_storage import Buffer
 
 
 def main():
@@ -37,7 +37,7 @@ def main():
     model, epoch, loss = load_checkpoint(checkpoint_path=checkpoint_path, model=model, optimizer=None)
 
     # Init Buffer
-    test_buffer = VAEBuffer(config=config.train_buffer, obs_dim=obs_dim, action_dim=action_dim)
+    test_buffer = Buffer(config=config.train_buffer, obs_dim=obs_dim, action_dim=action_dim)
 
     # Collect episodes from Task_0
     env.set_task(task=None)

@@ -9,7 +9,7 @@ from simplified_vae.env.stationary_cheetah_windvel_wrapper import StationaryChee
 from simplified_vae.utils.losses import compute_state_reconstruction_loss, compute_reward_reconstruction_loss, \
     compute_kl_loss, compute_kl_loss_with_posterior
 from simplified_vae.models.vae import VAE, RNNVAE
-from simplified_vae.utils.vae_storage import VAEBuffer
+from simplified_vae.utils.vae_storage import Buffer
 from simplified_vae.utils.logging_utils import save_checkpoint, write_config
 
 
@@ -39,8 +39,8 @@ class VAETrainer:
 
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=config.training.lr)
 
-        self.train_buffer: VAEBuffer = VAEBuffer(config=config.train_buffer, obs_dim=self.obs_dim, action_dim=self.action_dim)
-        self.test_buffer: VAEBuffer = VAEBuffer(config=config.test_buffer, obs_dim=self.obs_dim, action_dim=self.action_dim)
+        self.train_buffer: Buffer = Buffer(config=config.train_buffer, obs_dim=self.obs_dim, action_dim=self.action_dim)
+        self.test_buffer: Buffer = Buffer(config=config.test_buffer, obs_dim=self.obs_dim, action_dim=self.action_dim)
         self.min_loss = np.Inf
 
         write_config(config=config, logdir=self.logger.log_dir)

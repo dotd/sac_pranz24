@@ -6,6 +6,7 @@ import torch.nn as nn
 from torch.nn import functional as F
 from torch.distributions.multivariate_normal import MultivariateNormal
 from simplified_vae.config.config import Config
+from torch.autograd import Variable
 
 
 class MLP(nn.Module):
