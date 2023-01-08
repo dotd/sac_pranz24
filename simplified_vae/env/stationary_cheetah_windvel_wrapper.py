@@ -22,7 +22,8 @@ class StationaryCheetahWindVelEnv(Wrapper):
 
         self.task_space = spaces.Box(low=np.array ([config.task.low_target_vel,  config.task.low_wind_frc], dtype=np.float32),
                                      high=np.array([config.task.high_target_vel, config.task.high_wind_frc], dtype=np.float32),
-                                     dtype=np.float32)
+                                     dtype=np.float32,
+                                     seed=config.seed)
 
         self._max_episode_steps = config.train_buffer.max_episode_len
         self.task: np.ndarray = np.asarray([self.default_target_vel, self.default_wind_frc])

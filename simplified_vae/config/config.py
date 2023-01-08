@@ -75,7 +75,7 @@ class BufferConfig(BaseModel):
 class TrainBufferConfig(BufferConfig):
 
     max_episode_len: int = 100
-    max_episode_num: int = 500
+    max_episode_num: int = 200
 
 
 class TestBufferConfig(BufferConfig):
@@ -99,9 +99,11 @@ class ModelConfig(BaseModel):
 class CPDConfig(BaseModel):
 
     # window_lens: List = [10, 20, 30]
-    window_lens: List = [10]
+    window_lengths: List = [200]
     alpha_val: float = 0.5
-    clusters_num = 50
+    clusters_num = 5
+    cusum_thresh = 10
+    meta_dist_num: int = 2
 
 
 class TWRConfig(BaseModel):

@@ -37,23 +37,20 @@ class POCTrainer:
                                              obs_dim=self.obs_dim,
                                              action_dim=self.action_dim)
 
-        self.cpds = [CPD(state_num=self.config.cpd.clusters_num,
-                         window_length=self.config.cpd.window_lens[i],
-                         alpha_val=self.config.cpd.alpha_val) for i in range(len(self.config.cpd.window_lens))]
+        cpd_num = len(self.config.cpd.window_lengths)
+        self.cpds = [CPD(cpd_config=self.config.cpd,
+                         window_length=self.config.cpd.window_lengths[i]) for i in range(cpd_num)]
 
         self.clusterer = Clusterer(cluster_num=self.config.cpd.clusters_num, rg=self.rg)
+        self.meta_distributions: np.ndarray = np.zeros((self.config.cpd.meta_dist_num,
+                                                        self.config.cpd.clusters_num,
+                                                        self.config.cpd.clusters_num))
 
         # Init Buffer
         self.buffer = Buffer(max_episode_num=config.train_buffer.max_episode_num,
                              max_episode_len=config.train_buffer.max_episode_len,
                              obs_dim=self.obs_dim,
                              action_dim=self.action_dim)
-
-        self.test_buffer = Buffer(max_episode_num=config.test_buffer.max_episode_num,
-                                  max_episode_len=config.test_buffer.max_episode_len,
-                                  obs_dim=self.obs_dim,
-                                  action_dim=self.action_dim)
-
 
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=config.training.lr)
         write_config(config=config, logdir=self.logger.log_dir)
@@ -64,7 +61,7 @@ class POCTrainer:
                                         buffer=self.buffer,
                                         episode_num=self.config.train_buffer.max_episode_num,
                                         episode_len=self.config.train_buffer.max_episode_len,
-                                        env_change_freq=self.config.training.env_change_freq)
+                                        env_change_freq=self.config.train_buffer.max_episode_num)
 
         obs_d, actions_d, rewards_d = all_to_device(self.buffer.obs,
                                                     self.buffer.actions,
@@ -95,7 +92,7 @@ class POCTrainer:
         episode_steps = 0
         done = False
 
-        self.env.set_task(None)
+        # self.env.set_task(None)
         obs = self.env.reset()
         prev_label = None
 
@@ -105,26 +102,39 @@ class POCTrainer:
 
             next_obs, reward, done, _ = self.env.step(action)  # Step
 
+            curr_latent_sample, \
+            curr_latent_mean,\
+            curr_latent_logvar, \
+            curr_output_0 = self.model.encoder(obs=obs,
+                                               actions=action,
+                                               rewards=np.array([reward]))
+
+            curr_label = self.clusterer.predict(curr_latent_mean)
+            print(f'curr label = {curr_label}')
             if episode_steps > 0:
+                n_c, g_k = self.cpds[0].update_transition((prev_label.item(), curr_label.item()))
+                if n_c:
+                    self.add_meta_distribution(self.cpds[0])
 
-                # TODO embed to latent before clustering
-                curr_latent = self.model.encoder(obs=obs,
-                                                 actions=action,
-                                                 reward=reward,
-                                                 next_obs=next_obs)
+                # curr_cpd_estim = [cpd.update_transition((prev_label, curr_label)) for cpd in self.cpds]
 
-                curr_label = self.clusterer.predict(curr_latent)
-
-                curr_cpd_estim = [cpd.update_transition(prev_label, curr_label) for cpd in self.cpds]
-
+            if episode_steps == 80:
+                a = 1
+            done = done or (episode_steps >= self.config.train_buffer.max_episode_len)
             obs = next_obs
             prev_label = curr_label
             episode_steps += 1
 
+    def add_meta_distribution(self, cpd: CPD):
 
+        dist_0 = cpd.dist_0
+        dist_1 = cpd.dist_1
 
+        if self.meta_distributions is None:
+            self.meta_distributions[0, :, :] = dist_0
+            self.meta_distributions[0, :, :] = dist_1
 
-
+        # TODO find closest distribution to the new one
 
     def test_iter(self, obs: torch.Tensor,
                         actions: torch.Tensor,
@@ -148,35 +158,3 @@ class POCTrainer:
 
             return state_reconstruction_loss.item(), reward_reconstruction_loss.item(), kl_loss.item()
 
-    def batched_latent_representation(self, obs: torch.Tensor,
-                                            actions: torch.Tensor,
-                                            rewards: torch.Tensor):
-
-        episode_num, episode_len, _ = obs.shape
-        batch_size = 64
-
-        self.model.eval()
-        with torch.no_grad():
-
-            all_latent_means = torch.zeros([episode_num,
-                                            episode_len,
-                                            self.config.model.encoder.vae_hidden_dim])
-
-            for batch_idx in range(episode_num // batch_size):
-
-                curr_obs = obs[(batch_idx * batch_size):((batch_idx + 1) * batch_size), ...]
-                curr_actions = actions[(batch_idx * batch_size):((batch_idx + 1) * batch_size), ...]
-                curr_rewards = rewards[(batch_idx * batch_size):((batch_idx + 1) * batch_size), ...]
-
-                curr_obs_d, curr_actions_d, curr_rewards_d = all_to_device(curr_obs,
-                                                                           curr_actions,
-                                                                           curr_rewards,
-                                                                           device=self.config.device)
-
-                curr_latent_sample, curr_latent_mean, curr_latent_logvar, curr_output_0 = self.model.encoder(obs=curr_obs_d,
-                                                                                                             actions=curr_actions_d,
-                                                                                                             rewards=curr_rewards_d)
-
-                all_latent_means[batch_idx, ...] = curr_latent_mean
-
-        return all_latent_means
