@@ -84,6 +84,27 @@ class TestBufferConfig(BufferConfig):
     max_episode_num: int = 5000
 
 
+class AgentConfig(BaseModel):
+
+    gamma: float = 0.99
+    tau: float = 0.005
+    lr: float = 0.0003
+    alpha: float = 0.2
+    automatic_entropy_tuning: bool = False
+    batch_size: int = 256
+    num_steps: int = 1000001
+    hidden_size: int = 256
+    updates_per_step: int = 1
+    start_steps: int = 10000
+    target_update_interval: int = 1
+    replay_size: int = 1000000
+
+    policy_type: str = 'Gaussian'
+    target_update_interval = target_update_interval
+    automatic_entropy_tuning = automatic_entropy_tuning
+
+    agents_num: int = 2
+
 class ModelConfig(BaseModel):
 
     use_rnn_model: bool = False
@@ -143,6 +164,7 @@ class Config:
 
     logger = SummaryWriter(f'runs/{datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}_VAE')
 
+    agent: AgentConfig = AgentConfig()
     cpd: CPDConfig = CPDConfig()
     model: ModelConfig = ModelConfig()
     training: TrainingConfig = TrainingConfig()

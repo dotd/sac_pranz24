@@ -7,7 +7,7 @@ import itertools
 import torch
 from torch.utils.tensorboard import SummaryWriter
 
-from src.algos.sac import SAC
+from src.algos.sac_orig import SACOrig
 from src.utils.replay_memory import ReplayMemory
 
 
@@ -65,7 +65,7 @@ def run_agent_and_environment(arguments):
     np.random.seed(arguments.seed)
 
     # Agent
-    agent = SAC(env.observation_space.shape[0], env.action_space, arguments)
+    agent = SACOrig(env.observation_space.shape[0], env.action_space, arguments)
 
     # Tesnorboard
     writer = SummaryWriter(

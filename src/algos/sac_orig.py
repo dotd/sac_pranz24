@@ -6,7 +6,7 @@ from src.utils.utils import soft_update, hard_update
 from src.algos.model import GaussianPolicy, QNetwork, DeterministicPolicy
 
 
-class SAC(object):
+class SACOrig(object):
     def __init__(self, num_inputs, action_space, args):
 
         self.gamma = args.gamma
