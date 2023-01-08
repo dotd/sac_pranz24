@@ -13,6 +13,29 @@ from simplified_vae.utils.model_utils import init_model, all_to_device
 from simplified_vae.utils.vae_storage import Buffer
 
 
+def run_cusum(curr_transitions, markov_dist_0, markov_dist_1):
+
+    n_c, s_k, S_k, g_k = 0, [], [], []
+    sample_len = len(curr_transitions)
+    for k in range(sample_len):
+
+        curr_sample = curr_transitions[k, :]
+
+        p_0 = markov_dist_0.pdf(curr_sample)
+        p_1 = markov_dist_1.pdf(curr_sample)
+
+        s_k.append(math.log(p_1 / p_0))
+        S_k.append(sum(s_k))
+
+        min_S_k = min(S_k)
+        g_k.append(S_k[-1] - min_S_k)
+
+        if g_k[-1] > 10:
+            n_c = S_k.index(min(S_k))
+            # break
+
+    print(f'n_c = {n_c}')
+    plt.figure(), plt.plot(g_k), plt.show(block=True)
 
 def main():
 
@@ -27,7 +50,7 @@ def main():
     action_dim: int = env.action_space.n if discrete else env.action_space.shape[0]
     episode_num = 2000
     max_episode_len = 100
-    clusters_num = 15
+    clusters_num = 10
 
     # Init model
     # checkpoint_path = 'runs/2023-01-01_11-55-39_VAE/model_best.pth.tar'
@@ -126,6 +149,7 @@ def main():
         next_obs_2 = torch.cat([next_obs_0[:, :config.train_buffer.max_episode_len // 2, :],
                                 next_obs_1[:, :config.train_buffer.max_episode_len // 2, :]], dim=1)
 
+        # joint Trajectory
         obs_2_d, actions_2_d, rewards_2_d, next_obs_2_d = all_to_device(obs_2, actions_2, rewards_2, next_obs_2, device=config.device)
         latent_sample_2, latent_mean_2, latent_logvar_2, output_0 = model.encoder(obs=obs_2_d, actions=actions_2_d, rewards=rewards_2_d)
 
@@ -134,28 +158,19 @@ def main():
 
         curr_labels = kmeans.predict(sample_joint_trajectory)
         curr_transitions = np.stack([curr_labels[:-1], curr_labels[1:]], axis=1)
+        run_cusum(curr_transitions, markov_dist_0, markov_dist_1)
 
-        n_c, s_k, S_k, g_k = 0, [], [], []
-        sample_len = len(curr_transitions)
-        for k in range(sample_len):
+        # Single Trajectory
+        obs_0_d, actions_0_d, rewards_0_d, next_obs_0_d = all_to_device(obs_0, actions_0, rewards_0, next_obs_0, device=config.device)
+        latent_sample_0, latent_mean_0, latent_logvar_0, output_0 = model.encoder(obs=obs_0_d, actions=actions_0_d, rewards=rewards_0_d)
 
-            curr_sample = curr_transitions[k, :]
+        sample_joint_trajectory = latent_mean_0[0, ...]
+        sample_joint_trajectory = sample_joint_trajectory.detach().cpu().numpy()
 
-            p_0 = markov_dist_0.pdf(curr_sample)
-            p_1 = markov_dist_1.pdf(curr_sample)
+        curr_labels = kmeans.predict(sample_joint_trajectory)
+        curr_transitions = np.stack([curr_labels[:-1], curr_labels[1:]], axis=1)
+        run_cusum(curr_transitions, markov_dist_0, markov_dist_1)
 
-            s_k.append(math.log(p_1 / p_0))
-            S_k.append(sum(s_k))
-
-            min_S_k = min(S_k)
-            g_k.append(S_k[-1] - min_S_k)
-
-            if g_k[-1] > 10:
-                n_c = S_k.index(min(S_k))
-                # break
-
-        print(f'n_c = {n_c}')
-        plt.figure(), plt.plot(g_k), plt.show(block=True)
 
 
 if __name__ == '__main__':
