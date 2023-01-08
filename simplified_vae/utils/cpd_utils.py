@@ -1,38 +1,49 @@
 import math
+from typing import Tuple
 
 import numpy as np
 from collections import deque
 
+from simplified_vae.config.config import CPDConfig
 from simplified_vae.cusum.cusum_utils import MarkovDistribution
 
 
 class CPD:
 
     def __init__(self,
-                 state_num: int,
-                 window_length: int,
-                 alpha_val: float):
+                 cpd_config: CPDConfig,
+                 window_length: int):
 
+        self.cpd_config = cpd_config
+        self.window_length = window_length
+
+        self.dist_0_queue_len = int(window_length * self.cpd_config.alpha_val)
+        self.dist_1_queue_len = int(window_length * (1 - self.cpd_config.alpha_val))
         self.window_queue = deque(maxlen=window_length)
-        self.alpha_val = alpha_val
-        self.cusum_threshold = 10
 
-        self.dist_0: MarkovDistribution = MarkovDistribution(state_num=state_num)
-        self.dist_1: MarkovDistribution = MarkovDistribution(state_num=state_num)
+        self.dist_0: MarkovDistribution = MarkovDistribution(state_num=cpd_config.clusters_num, window_length=self.dist_0_queue_len)
+        self.dist_1: MarkovDistribution = MarkovDistribution(state_num=cpd_config.clusters_num, window_length=self.dist_1_queue_len)
 
         self.oldest_transition = None
 
-    def update_transition(self, curr_transition: np.ndarray):
-
-        if len(self.window_queue) == self.window_queue.maxlen:
-            self.oldest_transition = self.window_queue.pop()
+    def update_transition(self, curr_transition: Tuple[int, int]):
 
         self.window_queue.append(curr_transition)
 
-        self.dist_0.update_transition()
-        self.dist_1.update_transition()
+        if not self.dist_0.full: # dist_0 is not full
+            self.dist_0.update_transition(curr_transition=curr_transition)
 
-        return self.windowed_cusum()
+        else:
+            if not self.dist_1.full: # dist_1 is not full
+                self.dist_1.update_transition(curr_transition=curr_transition)
+
+            else: # both queues are full
+                dist_1_oldest_transition = self.dist_1.update_transition(curr_transition=curr_transition)
+                self.dist_0.update_transition(curr_transition=dist_1_oldest_transition)
+
+        n_c, g_k = self.windowed_cusum() if len(self.window_queue) == self.window_length else None, None
+
+        return n_c, g_k
 
     def windowed_cusum(self):
 
@@ -51,7 +62,7 @@ class CPD:
             min_S_k = min(S_k)
             g_k.append(S_k[-1] - min_S_k)
 
-            if g_k[-1] > self.cusum_threshold:
+            if g_k[-1] > self.cpd_config.cusum_thresh:
                 n_c = S_k.index(min(S_k))
                 # break
 

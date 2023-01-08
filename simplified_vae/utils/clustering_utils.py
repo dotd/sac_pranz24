@@ -1,4 +1,5 @@
 import numpy as np
+import torch
 from sklearn.cluster import KMeans
 
 
@@ -27,4 +28,10 @@ class Clusterer:
 
     def predict(self, obs):
 
-        return self.kmeans.predict(obs)
+        if isinstance(obs, torch.Tensor):
+            obs = obs.detach().cpu().numpy()
+        batch_size, seq_len, latent_dim = obs.shape
+
+        # reshape to (-1, latent_dim) --> size will be samples X latent_dim
+        data = obs.reshape((-1, latent_dim))
+        return self.kmeans.predict(data)

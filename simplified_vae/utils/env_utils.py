@@ -99,6 +99,7 @@ def make_stationary_env(config: Config):
     max_episode_steps = 100
 
     env = gym.make(config.env_name)
+    env.seed(config.seed)
     env._max_episode_steps = config.train_buffer.max_episode_len
 
     env = StationaryCheetahWindVelEnv(env=env, config=config)

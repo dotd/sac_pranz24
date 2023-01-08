@@ -136,10 +136,24 @@ class RNNEncoder(nn.Module):
         For feeding in entire trajectories, sequence_len>1 and hidden_state=None.
         In the latter case, we return embeddings of length sequence_len+1 since they include the prior.
         """
+        if len(obs.shape) == 1:
+            obs = obs[np.newaxis,np.newaxis,:]
+        if len(actions.shape) == 1:
+            actions = actions[np.newaxis, np.newaxis, :]
+        if len(rewards.shape) == 1:
+            rewards = rewards[np.newaxis, np.newaxis,:]
+
+        if isinstance(obs, np.ndarray):
+            obs = torch.Tensor(obs).to(self.config.device)
+        if isinstance(actions, np.ndarray):
+            actions = torch.Tensor(actions).to(self.config.device)
+        if isinstance(rewards, np.ndarray):
+            rewards = torch.Tensor(rewards).to(self.config.device)
+
+
 
         # shape should be: batch_size X sequence_len X hidden_size
         # extract features for states, actions, rewards
-
         obs_embed = self.activation(self.state_encoder(obs))
         actions_embed = self.activation(self.action_encoder(actions))
         reward_embed = self.activation(self.reward_encoder(rewards))
