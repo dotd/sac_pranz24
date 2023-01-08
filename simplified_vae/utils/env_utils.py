@@ -113,6 +113,25 @@ def make_stationary_env(config: Config):
 
     return env
 
+def make_toggle_env(config: Config):
+
+    # Environment
+    max_episode_steps = 100
+
+    env = gym.make(config.env_name)
+    env.seed(config.seed)
+    env._max_episode_steps = config.train_buffer.max_episode_len
+
+    env = StationaryCheetahWindVelEnv(env=env, config=config)
+    env._max_episode_steps = max_episode_steps
+
+    env.seed(config.seed)
+    env.action_space.seed(config.seed)
+
+    torch.manual_seed(config.seed)
+    np.random.seed(config.seed)
+
+    return env
 
 def collect_stationary_trajectories(env: Union[gym.Env,
                                     StationaryCheetahWindVelEnv],
