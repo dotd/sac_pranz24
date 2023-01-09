@@ -8,6 +8,7 @@ from scipy.stats import randint
 
 from simplified_vae.config.config import Config
 from simplified_vae.env.stationary_cheetah_windvel_wrapper import StationaryCheetahWindVelEnv
+from simplified_vae.env.toggle_windvel_env import ToggleWindVelEnv
 from simplified_vae.utils.vae_storage import Buffer
 
 
@@ -122,7 +123,7 @@ def make_toggle_env(config: Config):
     env.seed(config.seed)
     env._max_episode_steps = config.train_buffer.max_episode_len
 
-    env = StationaryCheetahWindVelEnv(env=env, config=config)
+    env = ToggleWindVelEnv(env=env, config=config)
     env._max_episode_steps = max_episode_steps
 
     env.seed(config.seed)

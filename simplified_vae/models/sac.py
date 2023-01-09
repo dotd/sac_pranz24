@@ -1,4 +1,6 @@
 import os
+
+import numpy as np
 import torch
 import torch.nn.functional as F
 from torch.optim import Adam
@@ -6,15 +8,17 @@ from torch.optim import Adam
 from simplified_vae.config.config import Config
 from simplified_vae.utils.agent_utils import soft_update, hard_update
 from simplified_vae.models.model import GaussianPolicy, QNetwork, DeterministicPolicy
+from src.utils.replay_memory import ReplayMemory
 
 
 class SAC(object):
-    
+
     def __init__(self,
                  config: Config,
                  num_inputs: int,
                  action_space):
 
+        self.config = config
         self.gamma = config.agent.gamma
         self.tau = config.agent.tau
         self.alpha = config.agent.alpha
@@ -31,6 +35,10 @@ class SAC(object):
         self.critic_target = QNetwork(num_inputs, action_space.shape[0], config.agent.hidden_size).to(self.device)
         hard_update(self.critic_target, self.critic)
 
+        self.replay_memory = ReplayMemory(config.agent.replay_size, config.seed)
+
+        self.transition_mat: np.ndarray = np.zeros((self.config.cpd.clusters_num,
+                                                    self.config.cpd.clusters_num))
         if self.policy_type == "Gaussian":
             # Target Entropy = −dim(A) (e.g. , -6 for HalfCheetah-v2) as given in the paper
             if self.automatic_entropy_tuning is True:

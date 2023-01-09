@@ -48,11 +48,8 @@ class POCTrainer:
                          window_length=self.config.cpd.window_lengths[i]) for i in range(cpd_num)]
 
         self.clusterer = Clusterer(cluster_num=self.config.cpd.clusters_num, rg=self.rg)
-        self.meta_distributions: np.ndarray = np.zeros((self.config.agent.agents_num,
-                                                        self.config.cpd.clusters_num,
-                                                        self.config.cpd.clusters_num))
 
-        self.replay_memory = ReplayMemory(config.agent.replay_size, config.seed)
+
 
         # Init Buffer
         self.buffer = Buffer(max_episode_num=config.train_buffer.max_episode_num,
@@ -99,24 +96,27 @@ class POCTrainer:
             done = False
             obs = self.env.reset()
             prev_label = None
+            active_agent_idx = 0
 
             while not done:
 
-                curr_agent = self.agents[0]
+                curr_agent = self.agents[active_agent_idx]
+
                 if self.config.agent.start_steps > total_steps:
                     action = self.env.action_space.sample()  # Sample random action
                 else:
                     action = curr_agent.select_action(obs)  # Sample action from policy
 
-                if len(self.replay_memory) > self.config.agent.batch_size:
+                if len(curr_agent.replay_memory) > self.config.agent.batch_size:
                     # Number of updates per step in environment
                     for i in range(self.config.agent.updates_per_step):
+
                         # Update parameters of all the networks
                         critic_1_loss, \
                         critic_2_loss, \
                         policy_loss, \
                         ent_loss, \
-                        alpha = curr_agent.update_parameters(memory=self.replay_memory,
+                        alpha = curr_agent.update_parameters(memory=curr_agent.replay_memory,
                                                              batch_size=self.config.agent.batch_size,
                                                              updates=updates)
 
@@ -129,25 +129,17 @@ class POCTrainer:
 
                 next_obs = reward, done, _ = self.env.step(action)  # Step
 
-                # perform add_transition and cusum
-                curr_latent_sample, \
-                curr_latent_mean, \
-                curr_latent_logvar, \
-                curr_output = self.model.encoder(obs=obs,
-                                                 actions=action,
-                                                 rewards=np.array([reward]))
-
-                curr_label = self.clusterer.predict(curr_latent_mean)
-                print(f'curr label = {curr_label}')
-                if episode_steps > 0:
-                    n_c, g_k = self.cpds[0].update_transition((prev_label.item(), curr_label.item()))
-                    if n_c:
-                        self.add_meta_distribution(self.cpds[0])
+                curr_label, active_agent_idx = self.update_cpd(curr_agent=curr_agent,
+                                                               obs=obs,
+                                                               action=action,
+                                                               reward=reward,
+                                                               prev_label=prev_label,
+                                                               episode_steps=episode_steps)
 
                 # Ignore the "done" signal if it comes from hitting the time horizon.
                 # (https://github.com/openai/spinningup/blob/master/spinup/algos/sac/sac.py)
                 mask = 1 if episode_steps == self.env._max_episode_steps else float(not done)
-                self.replay_memory.push(obs, action, reward, next_obs, mask)  # Append transition to memory
+                curr_agent.replay_memory.push(obs, action, reward, next_obs, mask)  # Append transition to memory
 
                 obs = next_obs
                 prev_label = curr_label
@@ -208,16 +200,38 @@ class POCTrainer:
             prev_label = curr_label
             episode_steps += 1
 
-    def add_meta_distribution(self, cpd: CPD):
+    def update_cpd(self,
+                   curr_agent: SAC,
+                   obs: torch.Tensor,
+                   action: torch.Tensor,
+                   reward: torch.Tensor,
+                   prev_label: np.ndarray,
+                   episode_steps: int):
 
-        dist_0 = cpd.dist_0
-        dist_1 = cpd.dist_1
+        # perform add_transition and cusum
+        curr_latent_sample, \
+        curr_latent_mean, \
+        curr_latent_logvar, \
+        curr_output = self.model.encoder(obs=obs,
+                                         actions=action,
+                                         rewards=np.array([reward]))
 
-        if self.meta_distributions is None:
-            self.meta_distributions[0, :, :] = dist_0
-            self.meta_distributions[0, :, :] = dist_1
+        self.clusterer.update_clusters(latent_means=curr_latent_mean)
+        curr_label = self.clusterer.predict(curr_latent_mean)
 
-        # TODO find closest distribution to the new one
+        print(f'curr label = {curr_label}')
+        if episode_steps > 0:
+            n_c, g_k = self.cpds[0].update_transition((prev_label.item(), curr_label.item()))
+
+            if n_c: # change has been detected
+                pass
+
+            else: # no change, update current transition matrix
+                prev_matrix = curr_agent.transition_mat
+                curr_matrix = self.cpds[0].dist_0.transition_mat
+                curr_agent.transition_mat = prev_matrix + (curr_matrix - prev_matrix) / (episode_steps + 1)
+
+        return curr_label
 
     def test_iter(self, obs: torch.Tensor,
                         actions: torch.Tensor,
