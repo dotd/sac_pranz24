@@ -24,7 +24,7 @@ def sample_stationary_trajectory(env: Union[Env, StationaryCheetahWindVelEnv], m
 
         # use the most recent ob to decide what to do
         all_obs.append(obs)
-        curr_action = env.action_space.sample()
+        curr_action = env.action_space.sample() # TODO cahnge to init model sampling
         all_actions.append(curr_action)
 
         # take that action and record results

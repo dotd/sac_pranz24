@@ -16,8 +16,9 @@ def main():
     poc_trainer = POCTrainer(config=config, env=env)
 
     poc_trainer.init_clusters()
-
-    poc_trainer.test_model()
+    # TODO train VAE
+    
+    poc_trainer.train_model()
 
 
 if __name__ == '__main__':

@@ -88,7 +88,8 @@ class ToggleWindVelEnv(Wrapper):
             self.summary_writer.add_scalar(tag='env/wind_friction', scalar_value=self.task[1], global_step=self.counter)
 
         if self.counter % self.change_freq == 0 and self.counter > 0 and not self.renewal:
-            self.set_task(task=None)
+            self.task_idx = int(not self.task_idx)
+            self.set_task(task=self.tasks[self.task_idx])
             print("CHANGED TO TASK {} AT STEP {}!".format(self.current_task, self.counter))
 
             self.summary_writer.add_scalar(tag='env/target_velocity', scalar_value=self.task[0], global_step=self.counter)
