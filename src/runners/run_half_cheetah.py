@@ -10,6 +10,7 @@ from torch.utils.tensorboard import SummaryWriter
 from src.algos.sac import SAC
 from src.environments.wrappers.non_stationary_cheetah_windvel_wrapper import NonStationaryCheetahWindVelEnv
 from src.environments.wrappers.stationary_cheetah_windvel_wrapper import StationaryCheetahWindVelEnv
+from from src.environments.wrappers.toggle_windvel_env_wrapper import ToggleWindVelEnv
 from src.utils.replay_memory import ReplayMemory
 
 
@@ -70,7 +71,8 @@ def run_agent_and_environment(arguments):
     env = gym.make(arguments.env_name)
     env._max_episode_steps = max_episode_steps
 
-    env = NonStationaryCheetahWindVelEnv(env=env, change_freq=20000, renewal=True, summary_writer=writer)
+    # env = NonStationaryCheetahWindVelEnv(env=env, change_freq=20000, renewal=True, summary_writer=writer)
+    env = ToggleWindVelEnv(env=env, change_freq=20000, renewal=False, summary_writer=writer)
     # env = StationaryCheetahWindVelEnv(env=env, summary_writer=writer)
     env._max_episode_steps = max_episode_steps
 
