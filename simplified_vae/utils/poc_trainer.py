@@ -83,9 +83,6 @@ class POCTrainer:
 
     def train_model(self):
 
-        # Memory
-
-        # Training Loop
         total_steps = 0
         updates = 0
 
@@ -129,17 +126,19 @@ class POCTrainer:
 
                 next_obs = reward, done, _ = self.env.step(action)  # Step
 
-                curr_label, active_agent_idx = self.update_cpd(curr_agent=curr_agent,
-                                                               obs=obs,
-                                                               action=action,
-                                                               reward=reward,
-                                                               prev_label=prev_label,
-                                                               episode_steps=episode_steps)
-
                 # Ignore the "done" signal if it comes from hitting the time horizon.
                 # (https://github.com/openai/spinningup/blob/master/spinup/algos/sac/sac.py)
                 mask = 1 if episode_steps == self.env._max_episode_steps else float(not done)
                 curr_agent.replay_memory.push(obs, action, reward, next_obs, mask)  # Append transition to memory
+
+                # update CPD estimation
+                curr_label, n_c, g_k = self.update_cpd(obs=obs,
+                                                       action=action,
+                                                       reward=reward,
+                                                       prev_label=prev_label,
+                                                       episode_steps=episode_steps)
+                # Update policy if CPD is detected
+                active_agent_idx = self.update_policy(n_c, active_agent_idx)
 
                 obs = next_obs
                 prev_label = curr_label
@@ -201,7 +200,6 @@ class POCTrainer:
             episode_steps += 1
 
     def update_cpd(self,
-                   curr_agent: SAC,
                    obs: torch.Tensor,
                    action: torch.Tensor,
                    reward: torch.Tensor,
@@ -222,16 +220,22 @@ class POCTrainer:
         print(f'curr label = {curr_label}')
         if episode_steps > 0:
             n_c, g_k = self.cpds[0].update_transition((prev_label.item(), curr_label.item()))
+        else:
+            n_c, g_k = None, None
+
+        return curr_label, n_c, g_k
+
+    def update_policy(self, n_c, active_agent_idx: int):
 
             if n_c: # change has been detected
-                pass
+                active_agent_idx = int(not active_agent_idx)
 
             else: # no change, update current transition matrix
-                prev_matrix = curr_agent.transition_mat
+                prev_matrix = self.agents[active_agent_idx].transition_mat
                 curr_matrix = self.cpds[0].dist_0.transition_mat
-                curr_agent.transition_mat = prev_matrix + (curr_matrix - prev_matrix) / (episode_steps + 1)
+                self.agents[active_agent_idx].transition_mat = prev_matrix + (curr_matrix - prev_matrix) / (episode_steps + 1)
 
-        return curr_label
+            return active_agent_idx
 
     def test_iter(self, obs: torch.Tensor,
                         actions: torch.Tensor,
