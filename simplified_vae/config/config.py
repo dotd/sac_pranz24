@@ -51,7 +51,7 @@ class TrainingConfig(BaseModel):
     use_kl_posterior_loss: bool = False
     use_stationary_trajectories: bool = False
 
-    env_change_freq: int = 100
+
     eval_freq: int = 50
     print_train_loss_freq = 50
 
@@ -64,7 +64,8 @@ class TaskConfig(BaseModel):
     high_target_vel: float = 3.
     low_wind_frc: float = 0.
     high_wind_frc: float = 20.
-
+    poisson_dist: bool = False
+    env_change_freq: int = 100
 
 class BufferConfig(BaseModel):
 
@@ -120,11 +121,12 @@ class ModelConfig(BaseModel):
 class CPDConfig(BaseModel):
 
     # window_lens: List = [10, 20, 30]
-    window_lengths: List = [200]
+    window_lengths: List = [1000]
     alpha_val: float = 0.5
-    clusters_num = 5
+    clusters_num = 15
     cusum_thresh = 10
     meta_dist_num: int = 2
+    queue_size: int = 1000
 
 
 class TWRConfig(BaseModel):

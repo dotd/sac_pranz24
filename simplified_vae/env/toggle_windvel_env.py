@@ -10,6 +10,8 @@ from gym import spaces
 # Same environment as in LILAC for Half cheetah Windvel
 from torch.utils.tensorboard import SummaryWriter
 
+from simplified_vae.config.config import Config
+
 
 def change_increments(change_freq):
     return int(np.ceil(np.log(1 - random.random()) / np.log(1 - (1 / change_freq)) - 1))
@@ -19,41 +21,40 @@ class ToggleWindVelEnv(Wrapper):
 
     def __init__(self,
                  env: gym.Env,
-                 change_freq: int,
-                 renewal: bool,
-                 summary_writer: SummaryWriter):
+                 config: Config):
 
         super(ToggleWindVelEnv, self).__init__(env)
 
-        self.summary_writer = summary_writer
+        self.config: Config = config
+        self.summary_writer = config.logger
 
-        self.change_freq: int = change_freq
-        self.next_change: int = change_increments(self.change_freq)  # for renewal process only
+        self.change_freq: int = config.task.env_change_freq
+        self.next_change: int = change_increments(self.change_freq)  # for poisson_dist process only
         self.action_dim: int = self.env.action_space.shape[0]
         self.counter: int = 0
 
-        self._max_episode_steps: int = 1000
+        self._max_episode_steps: int = config.train_buffer.max_episode_len
 
-        self.low_target_vel: float = 0.
-        self.high_target_vel: float = 3.
-        self.low_wind_frc: float = 0.
-        self.high_wind_frc: float = 20.
+        self.low_target_vel: float = config.task.low_target_vel
+        self.high_target_vel: float = config.task.high_target_vel
+        self.low_wind_frc: float = config.task.low_wind_frc
+        self.high_wind_frc: float = config.task.high_wind_frc
 
         self.default_target_vel: float = (self.high_target_vel + self.low_target_vel) / 2
         self.default_wind_frc: float = (self.high_wind_frc + self.low_wind_frc) / 2
 
         self.task = np.asarray([self.default_target_vel, self.default_wind_frc])
-        self.task_dim: int = 2
+
         self.task_space = spaces.Box(low=np.array ([self.low_target_vel,  self.low_wind_frc], dtype=np.float32),
                                      high=np.array([self.high_target_vel, self.high_wind_frc], dtype=np.float32),
-                                     dtype=np.float32, seed=env.seed)
+                                     dtype=np.float32, seed=config.seed)
 
         self.tasks: List = [self.task_space.sample(), self.task_space.sample()]
         self.task_idx: int = 1
 
         self.ep_length: int = 0
         self.cum_rwd: int = 0
-        self.renewal: bool = renewal  # whether or not to generate random time changes
+        self.poisson_dist: bool = config.task.poisson_dist  # whether or not to generate random time changes
 
     @property
     def current_task(self):
@@ -73,7 +74,7 @@ class ToggleWindVelEnv(Wrapper):
 
     def step(self, action):
 
-        if self.counter - self.next_change == 0 and self.counter > 0 and self.renewal:
+        if self.counter - self.next_change == 0 and self.counter > 0 and self.poisson_dist:
             jump = change_increments(self.change_freq)
             if jump == 0:
                 jump += 1
@@ -87,7 +88,7 @@ class ToggleWindVelEnv(Wrapper):
             self.summary_writer.add_scalar(tag='env/target_velocity', scalar_value=self.task[0], global_step=self.counter)
             self.summary_writer.add_scalar(tag='env/wind_friction', scalar_value=self.task[1], global_step=self.counter)
 
-        if self.counter % self.change_freq == 0 and self.counter > 0 and not self.renewal:
+        if self.counter % self.change_freq == 0 and self.counter > 0 and not self.poisson_dist:
             self.task_idx = int(not self.task_idx)
             self.set_task(task=self.tasks[self.task_idx])
             print("CHANGED TO TASK {} AT STEP {}!".format(self.current_task, self.counter))
@@ -123,7 +124,6 @@ class ToggleWindVelEnv(Wrapper):
             self.ep_length = self.cum_rwd = 0
 
         self.counter += 1
-        # wandb.log({'task/task_dim_0': self.target_vel, 'task/task_dim_1': self.wind_frc})
 
         return next_obs, reward, done, info
 

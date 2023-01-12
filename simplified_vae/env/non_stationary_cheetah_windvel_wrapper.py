@@ -14,14 +14,14 @@ def change_increments(change_freq):
 
 class NonStationaryCheetahWindVelEnv(Wrapper):
 
-    def __init__(self, env, change_freq, renewal, summary_writer: SummaryWriter):
+    def __init__(self, env, change_freq, poisson_dist, summary_writer: SummaryWriter):
 
         super(NonStationaryCheetahWindVelEnv, self).__init__(env)
 
         self.summary_writer = summary_writer
 
         self.change_freq = change_freq
-        self.next_change = change_increments(self.change_freq)  # for renewal process only
+        self.next_change = change_increments(self.change_freq)  # for poisson_dist process only
         self.action_dim = self.env.action_space.shape[0]
         self.counter = 0
 
@@ -42,7 +42,7 @@ class NonStationaryCheetahWindVelEnv(Wrapper):
                                      dtype=np.float32)
         self.ep_length = 0
         self.cum_rwd = 0
-        self.renewal = renewal  # whether or not to generate random time changes
+        self.poisson_dist = poisson_dist  # whether or not to generate random time changes
 
     @property
     def current_task(self):
@@ -62,7 +62,7 @@ class NonStationaryCheetahWindVelEnv(Wrapper):
 
     def step(self, action):
 
-        if self.counter - self.next_change == 0 and self.counter > 0 and self.renewal:
+        if self.counter - self.next_change == 0 and self.counter > 0 and self.poisson_dist:
             jump = change_increments(self.change_freq)
             if jump == 0:
                 jump += 1
@@ -74,7 +74,7 @@ class NonStationaryCheetahWindVelEnv(Wrapper):
             self.summary_writer.add_scalar(tag='env/target_velocity', scalar_value=self.task[0], global_step=self.counter)
             self.summary_writer.add_scalar(tag='env/wind_friction', scalar_value=self.task[1], global_step=self.counter)
 
-        if self.counter % self.change_freq == 0 and self.counter > 0 and not self.renewal:
+        if self.counter % self.change_freq == 0 and self.counter > 0 and not self.poisson_dist:
             self.set_task(task=None)
             print("CHANGED TO TASK {} AT STEP {}!".format(self.current_task, self.counter))
 

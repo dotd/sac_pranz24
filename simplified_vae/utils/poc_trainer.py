@@ -7,9 +7,11 @@ import torch
 from torch.utils.tensorboard import SummaryWriter
 
 from simplified_vae.config.config import Config
+from simplified_vae.env.toggle_windvel_env import ToggleWindVelEnv
 from simplified_vae.utils.clustering_utils import Clusterer
 from simplified_vae.utils.cpd_utils import CPD
-from simplified_vae.utils.env_utils import collect_stationary_trajectories
+from simplified_vae.utils.env_utils import collect_stationary_trajectories, collect_non_stationary_trajectories, \
+    collect_toggle_trajectories
 from simplified_vae.env.stationary_cheetah_windvel_wrapper import StationaryCheetahWindVelEnv
 from simplified_vae.utils.losses import compute_state_reconstruction_loss, compute_reward_reconstruction_loss, \
     compute_kl_loss
@@ -23,12 +25,14 @@ from src.utils.replay_memory import ReplayMemory
 class POCTrainer:
 
     def __init__(self, config: Config,
-                       env: StationaryCheetahWindVelEnv):
+                       env: Union[StationaryCheetahWindVelEnv, ToggleWindVelEnv],
+                       data_collection_env: Union[StationaryCheetahWindVelEnv, ToggleWindVelEnv]):
 
         self.config: Config = config
         self.logger: SummaryWriter = config.logger
 
-        self.env: StationaryCheetahWindVelEnv = env
+        self.env: Union[StationaryCheetahWindVelEnv, ToggleWindVelEnv] = env
+        self.data_collection_env: StationaryCheetahWindVelEnv = data_collection_env
         self.obs_dim: int = env.observation_space.shape[0]
         discrete = isinstance(env.action_space, gym.spaces.Discrete)
         self.action_dim: int = env.action_space.n if discrete else env.action_space.shape[0]
@@ -47,9 +51,7 @@ class POCTrainer:
         self.cpds = [CPD(cpd_config=self.config.cpd,
                          window_length=self.config.cpd.window_lengths[i]) for i in range(cpd_num)]
 
-        self.clusterer = Clusterer(cluster_num=self.config.cpd.clusters_num, rg=self.rg)
-
-
+        self.clusterer = Clusterer(config=self.config, rg=self.rg)
 
         # Init Buffer
         self.buffer = Buffer(max_episode_num=config.train_buffer.max_episode_num,
@@ -62,11 +64,13 @@ class POCTrainer:
 
     def init_clusters(self):
 
-        collect_stationary_trajectories(env=self.env,
-                                        buffer=self.buffer,
-                                        episode_num=self.config.train_buffer.max_episode_num,
-                                        episode_len=self.config.train_buffer.max_episode_len,
-                                        env_change_freq=self.config.train_buffer.max_episode_num)
+        collect_toggle_trajectories(env=self.data_collection_env,
+                                    buffer=self.buffer,
+                                    episode_num=self.config.train_buffer.max_episode_num,
+                                    episode_len=self.config.train_buffer.max_episode_len,
+                                    tasks=self.env.tasks,
+                                    actor_model=self.agents[0].policy,
+                                    device=self.config.device)
 
         obs_d, actions_d, rewards_d = all_to_device(self.buffer.obs,
                                                     self.buffer.actions,
@@ -80,6 +84,16 @@ class POCTrainer:
         # latent_means = self.batched_latent_representation(self.buffer.obs, self.buffer.actions, self.buffer.rewards)
 
         self.clusterer.cluster(latent_means=latent_mean)
+
+        task_num = len(self.env.tasks)
+        per_task_sample_num = self.config.train_buffer.max_episode_len * self.config.train_buffer.max_episode_num // task_num
+        all_labels = self.clusterer.predict(latent_means=latent_mean)
+
+        for cpd in self.cpds:
+            cpd.dist_0.init_transitions(labels=all_labels[:per_task_sample_num])
+            cpd.dist_1.init_transitions(labels=all_labels[per_task_sample_num:])
+
+
 
     def train_model(self):
 
@@ -124,7 +138,7 @@ class POCTrainer:
                         self.logger.add_scalar('entropy_temprature/alpha', alpha, updates)
                         updates += 1
 
-                next_obs = reward, done, _ = self.env.step(action)  # Step
+                next_obs, reward, done, _ = self.env.step(action)  # Step
 
                 # Ignore the "done" signal if it comes from hitting the time horizon.
                 # (https://github.com/openai/spinningup/blob/master/spinup/algos/sac/sac.py)
@@ -138,7 +152,7 @@ class POCTrainer:
                                                        prev_label=prev_label,
                                                        episode_steps=episode_steps)
                 # Update policy if CPD is detected
-                active_agent_idx = self.update_policy(n_c, active_agent_idx)
+                active_agent_idx = self.update_policy(n_c, active_agent_idx, episode_steps=episode_steps)
 
                 obs = next_obs
                 prev_label = curr_label
@@ -214,7 +228,7 @@ class POCTrainer:
                                          actions=action,
                                          rewards=np.array([reward]))
 
-        self.clusterer.update_clusters(latent_means=curr_latent_mean)
+        self.clusterer.update_clusters(new_obs=curr_latent_mean)
         curr_label = self.clusterer.predict(curr_latent_mean)
 
         print(f'curr label = {curr_label}')
@@ -225,7 +239,7 @@ class POCTrainer:
 
         return curr_label, n_c, g_k
 
-    def update_policy(self, n_c, active_agent_idx: int):
+    def update_policy(self, n_c, active_agent_idx: int, episode_steps: int):
 
             if n_c: # change has been detected
                 active_agent_idx = int(not active_agent_idx)

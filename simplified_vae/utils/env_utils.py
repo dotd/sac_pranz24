@@ -1,18 +1,23 @@
-from typing import Union
+from typing import Union, List, Optional
 
 import gym
 import numpy as np
 from gym import Env
 import torch
+import torch.nn as nn
 from scipy.stats import randint
 
 from simplified_vae.config.config import Config
 from simplified_vae.env.stationary_cheetah_windvel_wrapper import StationaryCheetahWindVelEnv
 from simplified_vae.env.toggle_windvel_env import ToggleWindVelEnv
+from simplified_vae.models.model import GaussianPolicy, DeterministicPolicy
 from simplified_vae.utils.vae_storage import Buffer
 
 
-def sample_stationary_trajectory(env: Union[Env, StationaryCheetahWindVelEnv], max_env_steps):
+def sample_stationary_trajectory(env: Union[Env, StationaryCheetahWindVelEnv],
+                                 max_env_steps: int,
+                                 actor_model: Optional[GaussianPolicy] = None,
+                                 device: Optional[str] = None):
 
     # initialize env for the beginning of a new rollout
     obs = env.reset()
@@ -24,7 +29,13 @@ def sample_stationary_trajectory(env: Union[Env, StationaryCheetahWindVelEnv], m
 
         # use the most recent ob to decide what to do
         all_obs.append(obs)
-        curr_action = env.action_space.sample() # TODO cahnge to init model sampling
+        if actor_model:
+            obs = torch.FloatTensor(obs).to(device).unsqueeze(0)
+            curr_action, _, _ = actor_model.sample(obs)
+            curr_action = curr_action.squeeze().detach().cpu().numpy()
+        else:
+            curr_action = env.action_space.sample() # TODO cahnge to init model sampling
+
         all_actions.append(curr_action)
 
         # take that action and record results
@@ -178,6 +189,40 @@ def collect_non_stationary_trajectories(env: Union[gym.Env, StationaryCheetahWin
                       rewards=rewards,
                       next_obs=next_obs,
                       dones=dones)
+
+def collect_toggle_trajectories(env: Union[gym.Env, StationaryCheetahWindVelEnv],
+                                buffer: Buffer,
+                                episode_num: int,
+                                episode_len: int,
+                                tasks: List[np.ndarray],
+                                actor_model: Optional[GaussianPolicy],
+                                device: Optional[str]):
+
+    task_num = len(tasks)
+    per_task_episode_num = episode_num // task_num
+    task_idx = 0
+
+    for trajectory_idx in range(episode_num):
+
+        if trajectory_idx % per_task_episode_num == 0:
+            env.set_task(tasks[task_idx])
+            print(f'Set Task {tasks[task_idx]} in idx {trajectory_idx}/{episode_num}')
+            task_idx += 1
+
+        if trajectory_idx % 100 == 0 and trajectory_idx > 0:
+            print(f'Train: Episode idx {trajectory_idx}/{episode_num}')
+
+        obs, actions, rewards, next_obs, dones = sample_stationary_trajectory(env=env,
+                                                                              max_env_steps=episode_len,
+                                                                              actor_model=actor_model,
+                                                                              device=device)
+
+        buffer.insert(obs=obs,
+                      actions=actions,
+                      rewards=rewards,
+                      next_obs=next_obs,
+                      dones=dones)
+
 
 
 def set_seed(seed: int):

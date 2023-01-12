@@ -11,9 +11,10 @@ def main():
 
     # Init Env
     env = make_toggle_env(config=config)
+    data_collection_env = make_stationary_env(config=config)
 
     # init Trainer
-    poc_trainer = POCTrainer(config=config, env=env)
+    poc_trainer = POCTrainer(config=config, env=env, data_collection_env=data_collection_env)
 
     poc_trainer.init_clusters()
     # TODO train VAE

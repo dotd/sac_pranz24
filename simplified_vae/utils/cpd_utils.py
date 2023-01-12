@@ -4,8 +4,11 @@ from typing import Tuple
 import numpy as np
 from collections import deque
 
+import torch
+
 from simplified_vae.config.config import CPDConfig
 from simplified_vae.cusum.cusum_utils import MarkovDistribution
+from simplified_vae.utils.clustering_utils import Clusterer
 
 
 class CPD:
