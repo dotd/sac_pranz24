@@ -196,7 +196,7 @@ def collect_toggle_trajectories(env: Union[gym.Env, StationaryCheetahWindVelEnv]
                                 episode_len: int,
                                 tasks: List[np.ndarray],
                                 actor_model: Optional[GaussianPolicy],
-                                device: Optional[str]):
+                                device: Optional[int]):
 
     task_num = len(tasks)
     per_task_episode_num = episode_num // task_num

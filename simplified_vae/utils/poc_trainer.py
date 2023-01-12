@@ -247,7 +247,7 @@ class POCTrainer:
             else: # no change, update current transition matrix
                 prev_matrix = self.agents[active_agent_idx].transition_mat
                 curr_matrix = self.cpds[0].dist_0.transition_mat
-                self.agents[active_agent_idx].transition_mat = prev_matrix + (curr_matrix - prev_matrix) / (episode_steps + 1)
+                self.agents[active_agent_idx].transition_mat = prev_matrix + (curr_matrix - prev_matrix) / (episode_steps + 1) # TODO fix averaging
 
             return active_agent_idx
 
