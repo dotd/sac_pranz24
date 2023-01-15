@@ -112,7 +112,6 @@ def main():
                                            window_length=max_episode_len,
                                            clustering=kmeans)
 
-
         batch_size, seq_len, latent_dim = latent_mean_h.shape
 
         # reshape to (-1, latent_dim) --> size will be samples X latent_dim
