@@ -51,7 +51,7 @@ class TrainingConfig(BaseModel):
     use_kl_posterior_loss: bool = False
     use_stationary_trajectories: bool = False
 
-    avg_reward_window_size = 100
+    sum_reward_window_size = 100
     eval_freq: int = 50
     print_train_loss_freq = 50
 
@@ -65,7 +65,7 @@ class TaskConfig(BaseModel):
     low_wind_frc: float = 0.
     high_wind_frc: float = 20.
     poisson_dist: bool = False
-    env_change_freq: int = 100000
+    env_change_freq: int = 10000
 
 class BufferConfig(BaseModel):
 
@@ -96,7 +96,7 @@ class AgentConfig(BaseModel):
     num_steps: int = 1000001
     hidden_size: int = 256
     updates_per_step: int = 1
-    start_steps: int = 10000
+    start_steps: int = 1000
     target_update_interval: int = 1
     replay_size: int = 1000000
 
@@ -121,13 +121,16 @@ class ModelConfig(BaseModel):
 class CPDConfig(BaseModel):
 
     # window_lens: List = [10, 20, 30]
-    window_lengths: List = [1000]
+    transition_window_lengths: List = [10000]
     alpha_val: float = 0.5
-    clusters_num = 15
+    clusters_num = 10
     cusum_thresh = 20
     meta_dist_num: int = 2
-    queue_size: int = 1000
+    clusters_queue_size: int = 100000
     dist_epsilon = 0.00001
+
+    max_episode_len: int = 100
+    max_episode_num: int = 2000
 
 class TWRConfig(BaseModel):
 

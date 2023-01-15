@@ -24,7 +24,7 @@ class Buffer(object):
         self.curr_insert_idx: int = 0  # at which index we're currently inserting new data
         self.is_buffer_full: bool = False
 
-        # buffers for completed episodes (stored on CPU) each buffer is batch_num X seq_len X internal_dim
+        # buffers for completed episodes (stored on CPU) each buffer is batch_num (episode) X seq_len X internal_dim
         self.obs: torch.Tensor = torch.zeros((self.max_episode_num, self.max_episode_len, obs_dim)).to(self.device)
         self.actions: torch.Tensor = torch.zeros((self.max_episode_num, self.max_episode_len, action_dim)).to(self.device)
         self.rewards: torch.Tensor = torch.zeros((self.max_episode_num, self.max_episode_len, 1)).to(self.device)

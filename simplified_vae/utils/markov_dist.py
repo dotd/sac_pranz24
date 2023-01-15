@@ -1,11 +1,7 @@
-import math
 import numpy as np
 from typing import Tuple, List, Union, Optional
 from collections import deque
-import torch
 from sklearn.cluster import KMeans
-
-from simplified_vae.utils.clustering_utils import Clusterer
 
 
 class MarkovDistribution:
@@ -20,8 +16,8 @@ class MarkovDistribution:
         self.dist_window_queue = deque(maxlen=window_length)
 
         self.clustering: KMeans = clustering
-        self.transition_mat: np.ndarray = np.ones((state_num, state_num)) 
-        self.column_sum_vec: np.ndarray = np.ones((state_num, 1))
+        self.transition_mat: np.ndarray = np.zeros((state_num, state_num))
+        self.column_sum_vec: np.ndarray = np.zeros((state_num, 1))
         self.update_num = 0
 
     @property

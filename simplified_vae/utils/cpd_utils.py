@@ -1,14 +1,10 @@
 import math
 from typing import Tuple
 
-import numpy as np
 from collections import deque
 
-import torch
-
 from simplified_vae.config.config import CPDConfig
-from simplified_vae.cusum.cusum_utils import MarkovDistribution
-from simplified_vae.utils.clustering_utils import Clusterer
+from simplified_vae.utils.markov_dist import MarkovDistribution
 
 
 class CPD:
@@ -33,16 +29,16 @@ class CPD:
 
         self.window_queue.append(curr_transition)
 
-        if not self.dist_0.full: # dist_0 is not full
-            self.dist_0.update_transition(curr_transition=curr_transition)
-
-        else:
-            if not self.dist_1.full: # dist_1 is not full
-                self.dist_1.update_transition(curr_transition=curr_transition)
-
-            else: # both queues are full
-                dist_1_oldest_transition = self.dist_1.update_transition(curr_transition=curr_transition)
-                self.dist_0.update_transition(curr_transition=dist_1_oldest_transition)
+        # if not self.dist_0.full: # dist_0 is not full
+        #     self.dist_0.update_transition(curr_transition=curr_transition)
+        #
+        # else:
+        #     if not self.dist_1.full: # dist_1 is not full
+        #         self.dist_1.update_transition(curr_transition=curr_transition)
+        #
+        #     else: # both queues are full
+        #         dist_1_oldest_transition = self.dist_1.update_transition(curr_transition=curr_transition)
+        #         self.dist_0.update_transition(curr_transition=dist_1_oldest_transition)
 
         n_c, g_k = self.windowed_cusum() if len(self.window_queue) == self.window_length else None, None
 

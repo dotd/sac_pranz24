@@ -150,8 +150,6 @@ class RNNEncoder(nn.Module):
         if isinstance(rewards, np.ndarray):
             rewards = torch.Tensor(rewards).to(self.config.device)
 
-
-
         # shape should be: batch_size X sequence_len X hidden_size
         # extract features for states, actions, rewards
         obs_embed = self.activation(self.state_encoder(obs))
@@ -159,7 +157,7 @@ class RNNEncoder(nn.Module):
         reward_embed = self.activation(self.reward_encoder(rewards))
         h = torch.cat((actions_embed, obs_embed, reward_embed), dim=2)
 
-        output, _ = self.gru(h, hidden_state)
+        output, hidden_state = self.gru(h, hidden_state)
         gru_h = output.clone()
 
         # outputs
@@ -168,4 +166,4 @@ class RNNEncoder(nn.Module):
 
         latent_sample = self.reparameterize(latent_mean, latent_logvar)
 
-        return latent_sample, latent_mean, latent_logvar, output
+        return latent_sample, latent_mean, latent_logvar, output, hidden_state

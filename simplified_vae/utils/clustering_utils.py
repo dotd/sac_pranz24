@@ -21,11 +21,12 @@ class Clusterer:
         self.clusters: Union[KMeans, MiniBatchKMeans] = None
         self.cluster_counts = np.array(self.clusters_num)
 
-        self.online_queues: List[deque] = [deque(maxlen=self.config.cpd.queue_size) for _ in range(self.clusters_num)]
+        self.online_queues: List[deque] = [deque(maxlen=self.config.cpd.clusters_queue_size) for _ in range(self.clusters_num)]
 
     def cluster(self, latent_means):
 
-        latent_means = latent_means.detach().cpu().numpy()
+        if isinstance(latent_means, torch.Tensor):
+            latent_means = latent_means.detach().cpu().numpy()
 
         # size of batch_size X seq_len X latent
         # General euclidean clustering of all states from all distributions
@@ -80,7 +81,7 @@ class Clusterer:
 
         curr_label = np.argmin(cluster_distances)
 
-        if len(self.online_queues[curr_label]) == self.config.cpd.queue_size:
+        if len(self.online_queues[curr_label]) == self.config.cpd.clusters_queue_size:
             prev_point = self.online_queues[curr_label].popleft()
             sample_count = len(self.online_queues[curr_label])
             self.clusters.cluster_centers_[curr_label] -= 1.0 / sample_count * (prev_point - self.clusters.cluster_centers_[curr_label])
