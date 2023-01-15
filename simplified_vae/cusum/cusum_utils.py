@@ -20,8 +20,8 @@ class MarkovDistribution:
         self.dist_window_queue = deque(maxlen=window_length)
 
         self.clustering: KMeans = clustering
-        self.transition_mat: np.ndarray = np.ones((state_num, state_num)) * np.finfo(float).eps
-        self.column_sum_vec: np.ndarray = np.ones((state_num, 1 )) * np.finfo(float).eps
+        self.transition_mat: np.ndarray = np.ones((state_num, state_num)) 
+        self.column_sum_vec: np.ndarray = np.ones((state_num, 1))
         self.update_num = 0
 
     @property
@@ -71,5 +71,5 @@ class MarkovDistribution:
         curr_column_sum_vec = np.sum(curr_transition_mat, axis=1)[:,np.newaxis]
 
         self.transition_mat = curr_transition_mat
-        self.curr_column_sum_vec = curr_column_sum_vec
+        self.column_sum_vec = curr_column_sum_vec
 

@@ -56,8 +56,8 @@ class CPD:
 
             curr_sample = self.window_queue[k]
 
-            p_0 = self.dist_0.pdf(curr_sample)
-            p_1 = self.dist_1.pdf(curr_sample)
+            p_0 = max(self.dist_0.pdf(curr_sample), self.cpd_config.dist_epsilon)
+            p_1 = max(self.dist_1.pdf(curr_sample), self.cpd_config.dist_epsilon)
 
             s_k.append(math.log(p_1 / p_0))
             S_k.append(sum(s_k))

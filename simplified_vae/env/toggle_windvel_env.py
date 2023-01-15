@@ -50,6 +50,7 @@ class ToggleWindVelEnv(Wrapper):
                                      dtype=np.float32, seed=config.seed)
 
         self.tasks: List = [self.task_space.sample(), self.task_space.sample()]
+
         self.task_idx: int = 1
 
         self.ep_length: int = 0

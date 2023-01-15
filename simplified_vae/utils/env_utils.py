@@ -34,7 +34,7 @@ def sample_stationary_trajectory(env: Union[Env, StationaryCheetahWindVelEnv],
             curr_action, _, _ = actor_model.sample(obs)
             curr_action = curr_action.squeeze().detach().cpu().numpy()
         else:
-            curr_action = env.action_space.sample() # TODO cahnge to init model sampling
+            curr_action = env.action_space.sample()
 
         all_actions.append(curr_action)
 
@@ -125,6 +125,7 @@ def make_stationary_env(config: Config):
 
     return env
 
+
 def make_toggle_env(config: Config):
 
     # Environment
@@ -143,7 +144,10 @@ def make_toggle_env(config: Config):
     torch.manual_seed(config.seed)
     np.random.seed(config.seed)
 
+    env.set_task(env.tasks[0])
+
     return env
+
 
 def collect_stationary_trajectories(env: Union[gym.Env,
                                     StationaryCheetahWindVelEnv],
@@ -195,8 +199,8 @@ def collect_toggle_trajectories(env: Union[gym.Env, StationaryCheetahWindVelEnv]
                                 episode_num: int,
                                 episode_len: int,
                                 tasks: List[np.ndarray],
-                                actor_model: Optional[GaussianPolicy],
-                                device: Optional[int]):
+                                actor_model: Optional[GaussianPolicy] = None,
+                                device: Optional[int] = None):
 
     task_num = len(tasks)
     per_task_episode_num = episode_num // task_num

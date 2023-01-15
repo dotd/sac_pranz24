@@ -17,8 +17,7 @@ def main():
     poc_trainer = POCTrainer(config=config, env=env, data_collection_env=data_collection_env)
 
     poc_trainer.init_clusters()
-    # TODO train VAE
-    
+
     poc_trainer.train_model()
 
 

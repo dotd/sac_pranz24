@@ -1,4 +1,5 @@
 import itertools
+from collections import deque
 from typing import Union
 
 import gym
@@ -68,9 +69,7 @@ class POCTrainer:
                                     buffer=self.buffer,
                                     episode_num=self.config.train_buffer.max_episode_num,
                                     episode_len=self.config.train_buffer.max_episode_len,
-                                    tasks=self.env.tasks,
-                                    actor_model=self.agents[0].policy,
-                                    device=self.config.device)
+                                    tasks=self.env.tasks)
 
         obs_d, actions_d, rewards_d = all_to_device(self.buffer.obs,
                                                     self.buffer.actions,
@@ -93,12 +92,12 @@ class POCTrainer:
             cpd.dist_0.init_transitions(labels=all_labels[:per_task_sample_num])
             cpd.dist_1.init_transitions(labels=all_labels[per_task_sample_num:])
 
-
-
     def train_model(self):
 
         total_steps = 0
         updates = 0
+
+        avg_reward_window = deque(maxlen=self.config.training.avg_reward_window_size)
 
         for i_episode in itertools.count(1):
 
@@ -160,10 +159,18 @@ class POCTrainer:
                 total_steps += 1
                 episode_reward += reward
 
+                avg_reward_window.append(reward)
+                if total_steps > self.config.training.avg_reward_window_size:
+                    avg_reward = sum([curr for curr in avg_reward_window]) / len(avg_reward_window)
+                    self.logger.add_scalar('reward/train', avg_reward, total_steps)
+
+                    if total_steps % self.config.training.print_train_loss_freq == 0:
+                        print(f'Curr Idx = {total_steps}, Avg Reward = {avg_reward}')
+
             if total_steps > self.config.agent.num_steps:
                 break
 
-            self.logger.add_scalar('reward/train', episode_reward, i_episode)
+            # self.logger.add_scalar('reward/train', episode_reward, i_episode)
             print("Episode: {}, total numsteps: {}, episode steps: {}, reward: {}".format(i_episode, total_steps,
                                                                                           episode_steps,
                                                                                           round(episode_reward, 2)))
@@ -198,7 +205,7 @@ class POCTrainer:
                                                rewards=np.array([reward]))
 
             curr_label = self.clusterer.predict(curr_latent_mean)
-            print(f'curr label = {curr_label}')
+            # print(f'curr label = {curr_label}')
             if episode_steps > 0:
                 n_c, g_k = self.cpds[0].update_transition((prev_label.item(), curr_label.item()))
                 if n_c:
@@ -231,7 +238,7 @@ class POCTrainer:
         self.clusterer.update_clusters(new_obs=curr_latent_mean)
         curr_label = self.clusterer.predict(curr_latent_mean)
 
-        print(f'curr label = {curr_label}')
+        # print(f'curr label = {curr_label}')
         if episode_steps > 0:
             n_c, g_k = self.cpds[0].update_transition((prev_label.item(), curr_label.item()))
         else:
@@ -245,9 +252,13 @@ class POCTrainer:
                 active_agent_idx = int(not active_agent_idx)
 
             else: # no change, update current transition matrix
-                prev_matrix = self.agents[active_agent_idx].transition_mat
-                curr_matrix = self.cpds[0].dist_0.transition_mat
-                self.agents[active_agent_idx].transition_mat = prev_matrix + (curr_matrix - prev_matrix) / (episode_steps + 1) # TODO fix averaging
+                if active_agent_idx == 0:
+                    self.agents[active_agent_idx].transition_mat = self.cpds[0].dist_0.transition_mat / \
+                                                                   self.cpds[0].dist_0.column_sum_vec
+
+                else:
+                    self.agents[active_agent_idx].transition_mat = self.cpds[0].dist_1.transition_mat / \
+                                                                   self.cpds[0].dist_1.column_sum_vec
 
             return active_agent_idx
 

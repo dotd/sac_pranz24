@@ -51,7 +51,7 @@ class TrainingConfig(BaseModel):
     use_kl_posterior_loss: bool = False
     use_stationary_trajectories: bool = False
 
-
+    avg_reward_window_size = 100
     eval_freq: int = 50
     print_train_loss_freq = 50
 
@@ -65,7 +65,7 @@ class TaskConfig(BaseModel):
     low_wind_frc: float = 0.
     high_wind_frc: float = 20.
     poisson_dist: bool = False
-    env_change_freq: int = 100
+    env_change_freq: int = 100000
 
 class BufferConfig(BaseModel):
 
@@ -75,8 +75,8 @@ class BufferConfig(BaseModel):
 
 class TrainBufferConfig(BufferConfig):
 
-    max_episode_len: int = 100
-    max_episode_num: int = 200
+    max_episode_len: int = 100000
+    max_episode_num: int = 2
 
 
 class TestBufferConfig(BufferConfig):
@@ -124,10 +124,10 @@ class CPDConfig(BaseModel):
     window_lengths: List = [1000]
     alpha_val: float = 0.5
     clusters_num = 15
-    cusum_thresh = 10
+    cusum_thresh = 20
     meta_dist_num: int = 2
     queue_size: int = 1000
-
+    dist_epsilon = 0.00001
 
 class TWRConfig(BaseModel):
 
@@ -136,7 +136,7 @@ class TWRConfig(BaseModel):
     hidden_size: int = 32
     n_layers: int = 5
     init_std: int = - 1
-    loss_type: str = 'KL' # 'KL', 'exp' or 'sqrt'
+    loss_type: str = 'KL'
 
     n_trajectories: int = 1
     length: int = 1000
