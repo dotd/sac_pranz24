@@ -155,7 +155,7 @@ class RNNEncoder(nn.Module):
         obs_embed = self.activation(self.state_encoder(obs))
         actions_embed = self.activation(self.action_encoder(actions))
         reward_embed = self.activation(self.reward_encoder(rewards))
-        h = torch.cat((actions_embed, obs_embed, reward_embed), dim=2)
+        h = torch.cat((actions_embed, obs_embed, reward_embed), dim=len(obs.shape)-1)
 
         output, hidden_state = self.gru(h, hidden_state)
         gru_h = output.clone()

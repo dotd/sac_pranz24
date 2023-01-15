@@ -1,5 +1,6 @@
 from typing import List
 
+import numpy
 import torch
 
 from simplified_vae.config.config import Config
@@ -38,6 +39,9 @@ def all_to_device(*args, device = None):
 
     args_d = []
     for arg in args:
+        if isinstance(arg, numpy.ndarray):
+            arg = torch.Tensor(arg)
+
         args_d.append(arg.to(device))
 
     return tuple(args_d)

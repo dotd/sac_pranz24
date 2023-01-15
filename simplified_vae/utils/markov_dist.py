@@ -30,7 +30,7 @@ class MarkovDistribution:
         self.column_sum_vec: np.ndarray = np.zeros((self.state_num, 1))
 
     def pdf(self, sample: Union[Tuple[Tuple, Tuple], List[List]]):
-        return self.transition_mat[sample[0], sample[1]] / self.column_sum_vec[sample[0], 0]
+        return max(self.transition_mat[sample[0], sample[1]], 0.000001) / min(self.column_sum_vec[sample[0], 0], 10000000)
 
     def rvs(self, size: int):
         raise NotImplementedError
