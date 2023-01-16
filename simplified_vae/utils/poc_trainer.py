@@ -67,7 +67,7 @@ class POCTrainer:
 
         # Collect episodes from Task_0
         self.data_collection_env.set_task(task=self.env.tasks[0])
-        task_0 = self.env.get_task()
+        task_0 = self.data_collection_env.get_task()
         collect_stationary_trajectories(env=self.data_collection_env,
                                         buffer=self.buffer,
                                         episode_num=self.config.cpd.max_episode_num // 2,
@@ -76,7 +76,7 @@ class POCTrainer:
 
         # collect episode from Task_1
         self.data_collection_env.set_task(task=self.env.tasks[1])
-        task_1 = self.env.get_task()
+        task_1 = self.data_collection_env.get_task()
         collect_stationary_trajectories(env=self.data_collection_env,
                                         buffer=self.buffer,
                                         episode_num=self.config.cpd.max_episode_num // 2,
@@ -89,7 +89,6 @@ class POCTrainer:
                                                                              end_idx=self.config.cpd.max_episode_num)
 
         obs_0_d, actions_0_d, rewards_0_d, next_obs_0 = all_to_device(obs_0, actions_0, rewards_0, next_obs_0, device=self.config.device)
-
         obs_1_d, actions_1_d, rewards_1_d, next_obs_1 = all_to_device(obs_1, actions_1, rewards_1, next_obs_1, device=self.config.device)
 
         self.model.eval()
@@ -105,8 +104,7 @@ class POCTrainer:
         latent_mean = torch.cat([latent_mean_0, latent_mean_1], dim=0)
         latent_mean_h = latent_mean.detach().cpu().numpy()
 
-        self.clusterer.cluster(latent_means=latent_mean_h)
-        all_labels = self.clusterer.predict(latent_means=latent_mean_h)
+        all_labels = self.clusterer.init_clusters(latent_mean_h)
 
         task_num = len(self.env.tasks)
         per_task_sample_num = self.config.train_buffer.max_episode_len * self.config.train_buffer.max_episode_num // task_num
@@ -128,7 +126,9 @@ class POCTrainer:
             episode_reward = 0
             episode_steps = 0
             done = False
-            obs = self.env.reset()
+            obs = self.data_collection_env.reset()
+            self.data_collection_env.set_task(self.env.tasks[0])
+
             prev_label = None
             active_agent_idx = 0
 
@@ -137,7 +137,7 @@ class POCTrainer:
                 curr_agent = self.agents[active_agent_idx]
 
                 if self.config.agent.start_steps > total_steps:
-                    action = self.env.action_space.sample()  # Sample random action
+                    action = self.data_collection_env.action_space.sample()  # Sample random action
                 else:
                     action = curr_agent.select_action(obs)  # Sample action from policy
 
@@ -161,11 +161,11 @@ class POCTrainer:
                         self.logger.add_scalar('entropy_temprature/alpha', alpha, updates)
                         updates += 1
 
-                next_obs, reward, done, _ = self.env.step(action)  # Step
+                next_obs, reward, done, _ = self.data_collection_env.step(action)  # Step
 
                 # Ignore the "done" signal if it comes from hitting the time horizon.
                 # (https://github.com/openai/spinningup/blob/master/spinup/algos/sac/sac.py)
-                mask = 1 if episode_steps == self.env._max_episode_steps else float(not done)
+                mask = 1 if episode_steps == self.data_collection_env._max_episode_steps else float(not done)
                 curr_agent.replay_memory.push(obs, action, reward, next_obs, mask)  # Append transition to memory
 
                 # update CPD estimation
@@ -264,7 +264,7 @@ class POCTrainer:
                                                            rewards=np.array([reward]),
                                                            hidden_state=hidden_state)
 
-        # self.clusterer.update_clusters(new_obs=curr_latent_mean)
+        self.clusterer.update_clusters(new_obs=curr_latent_mean)
         curr_label = self.clusterer.predict(curr_latent_mean)
 
         # print(f'curr label = {curr_label}')

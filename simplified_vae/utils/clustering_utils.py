@@ -23,6 +23,21 @@ class Clusterer:
 
         self.online_queues: List[deque] = [deque(maxlen=self.config.cpd.clusters_queue_size) for _ in range(self.clusters_num)]
 
+    def init_clusters(self, latent_mean_h: np.ndarray):
+
+        self.cluster(latent_means=latent_mean_h)
+
+        all_labels = self.predict(latent_means=latent_mean_h)
+
+        batch_size, seq_len, hidden_dim = latent_mean_h.shape
+        samples = latent_mean_h.reshape(-1, hidden_dim)
+
+        for cluster_idx in range(self.config.cpd.clusters_num):
+            curr_samples = samples[all_labels == cluster_idx, :]
+            self.online_queues[cluster_idx].extend(curr_samples)
+
+        return all_labels
+
     def cluster(self, latent_means):
 
         if isinstance(latent_means, torch.Tensor):
@@ -48,7 +63,7 @@ class Clusterer:
 
         return all_labels
 
-    def predict(self, latent_means: torch.Tensor):
+    def predict(self, latent_means: Union[torch.Tensor, np.ndarray]):
 
         if isinstance(latent_means, torch.Tensor):
             latent_means = latent_means.detach().cpu().numpy()
@@ -75,16 +90,12 @@ class Clusterer:
         if isinstance(new_obs, torch.Tensor):
             new_obs = new_obs.squeeze().detach().cpu().numpy()
 
-        cluster_distances = np.zeros(self.clusters_num)
-        for cluster in range(self.clusters_num):
-            cluster_distances[cluster] = sum(np.sqrt((new_obs - self.clusters.cluster_centers_[cluster]) ** 2))
-
-        curr_label = np.argmin(cluster_distances)
+        curr_label = self.clusters.predict(new_obs.reshape(1,-1)).item()
 
         if len(self.online_queues[curr_label]) == self.config.cpd.clusters_queue_size:
             prev_point = self.online_queues[curr_label].popleft()
             sample_count = len(self.online_queues[curr_label])
-            self.clusters.cluster_centers_[curr_label] -= 1.0 / sample_count * (prev_point - self.clusters.cluster_centers_[curr_label])
+            self.clusters.cluster_centers_[curr_label] -= (1.0 / sample_count) * (prev_point - self.clusters.cluster_centers_[curr_label])
 
         self.online_queues[curr_label].append(new_obs)
         sample_count = len(self.online_queues[curr_label])

@@ -121,16 +121,18 @@ class ModelConfig(BaseModel):
 class CPDConfig(BaseModel):
 
     # window_lens: List = [10, 20, 30]
-    transition_window_lengths: List = [10000]
+    transition_window_lengths: List = [1000]
     alpha_val: float = 0.5
     clusters_num = 10
     cusum_thresh = 20
     meta_dist_num: int = 2
-    clusters_queue_size: int = 100000
     dist_epsilon = 0.00001
 
     max_episode_len: int = 100
     max_episode_num: int = 2000
+    clusters_queue_size: int = 20000
+
+    median_window_size = 20
 
 class TWRConfig(BaseModel):
 

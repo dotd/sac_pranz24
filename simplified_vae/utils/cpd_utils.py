@@ -5,6 +5,7 @@ from collections import deque
 
 from simplified_vae.config.config import CPDConfig
 from simplified_vae.utils.markov_dist import MarkovDistribution
+from simplified_vae.utils.online_median_filter import RunningMedian
 
 
 class CPD:
@@ -25,20 +26,25 @@ class CPD:
 
         self.oldest_transition = None
 
+        self.running_median_g_k = RunningMedian(window=self.cpd_config.median_window_size)
+
     def update_transition(self, curr_transition: Tuple[int, int]):
 
         self.window_queue.append(curr_transition)
 
-        # if not self.dist_0.full: # dist_0 is not full
-        #     self.dist_0.update_transition(curr_transition=curr_transition)
-        #
-        # else:
-        #     if not self.dist_1.full: # dist_1 is not full
-        #         self.dist_1.update_transition(curr_transition=curr_transition)
-        #
-        #     else: # both queues are full
-        #         dist_1_oldest_transition = self.dist_1.update_transition(curr_transition=curr_transition)
-        #         self.dist_0.update_transition(curr_transition=dist_1_oldest_transition)
+        if len(self.window_queue) == 50:
+            a = 1
+
+        if not self.dist_0.full: # dist_0 is not full
+            self.dist_0.update_transition(curr_transition=curr_transition)
+
+        else:
+            if not self.dist_1.full: # dist_1 is not full
+                self.dist_1.update_transition(curr_transition=curr_transition)
+
+            else: # both queues are full
+                dist_1_oldest_transition = self.dist_1.update_transition(curr_transition=curr_transition)
+                self.dist_0.update_transition(curr_transition=dist_1_oldest_transition)
 
         n_c, g_k = self.windowed_cusum() if len(self.window_queue) == self.window_length else None, None
 
@@ -46,7 +52,7 @@ class CPD:
 
     def windowed_cusum(self):
 
-        n_c, s_k, S_k, g_k = 0, [], [], []
+        n_c, s_k, S_k, g_k, medians_k = 0, [], [], [], []
 
         for k in range(len(self.window_queue)):
 
@@ -61,7 +67,11 @@ class CPD:
             min_S_k = min(S_k)
             g_k.append(S_k[-1] - min_S_k)
 
-            if g_k[-1] > self.cpd_config.cusum_thresh:
+            curr_median = self.running_median_g_k.update(S_k[-1] - min_S_k)
+            medians_k.append(curr_median)
+
+            # if g_k[-1] > self.cpd_config.cusum_thresh:
+            if self.running_median_g_k.median > self.cpd_config.cusum_thresh:
                 n_c = S_k.index(min(S_k))
                 # break
 

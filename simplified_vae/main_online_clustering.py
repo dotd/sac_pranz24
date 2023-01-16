@@ -161,6 +161,32 @@ def process_joint_trajectory(env,
 
     return sample_joint_trajectory, obs_2_d, actions_2_d, rewards_2_d
 
+def process_stationary_trajectory(env,
+                                  model,
+                                  task_0,
+                                  max_episode_len,
+                                  device):
+
+    env.set_task(task=task_0)
+    obs_0, actions_0, rewards_0, next_obs_0, dones_0 = sample_stationary_trajectory(env=env,
+                                                                                    max_env_steps=max_episode_len)
+
+    model.eval()
+    with torch.no_grad():
+        obs_0_d, actions_0_d, rewards_0_d, next_obs_0_d = all_to_device(obs_0,
+                                                                        actions_0,
+                                                                        rewards_0,
+                                                                        next_obs_0,
+                                                                        device=device)
+
+        latent_sample_0, latent_mean_0, latent_logvar_0, output_0, hidden_state = model.encoder(obs=obs_0_d,
+                                                                                                actions=actions_0_d,
+                                                                                                rewards=rewards_0_d)
+
+        sample_joint_trajectory = latent_sample_0.detach().cpu().numpy()
+
+    return sample_joint_trajectory, obs_0_d, actions_0_d, rewards_0_d
+
 
 def main():
 
@@ -195,6 +221,12 @@ def main():
                                                                       rg=rg,
                                                                       device=config.device)
 
+    # sample_joint_trajectory, obs_2_d, actions_2_d, rewards_2_d = process_stationary_trajectory(env=env,
+    #                                                                                            model=model,
+    #                                                                                            task_0=task_0,
+    #                                                                                            max_episode_len=max_episode_len,
+    #                                                                                            device=config.device)
+
     sample_joint_trajectory, obs_2_d, actions_2_d, rewards_2_d = process_joint_trajectory(env=env,
                                                                                           model=model,
                                                                                           task_0=task_0,
@@ -204,7 +236,7 @@ def main():
 
     ref_labels = kmeans.predict(sample_joint_trajectory)
     ref_transitions = np.stack([ref_labels[:-1], ref_labels[1:]], axis=1)
-    # run_cusum(ref_transitions, markov_dist_0, markov_dist_1)
+    run_cusum(ref_transitions, markov_dist_0, markov_dist_1)
 
     done = False
     total_steps = 0
