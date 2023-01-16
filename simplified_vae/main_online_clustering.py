@@ -221,18 +221,18 @@ def main():
                                                                       rg=rg,
                                                                       device=config.device)
 
-    # sample_joint_trajectory, obs_2_d, actions_2_d, rewards_2_d = process_stationary_trajectory(env=env,
-    #                                                                                            model=model,
-    #                                                                                            task_0=task_0,
-    #                                                                                            max_episode_len=max_episode_len,
-    #                                                                                            device=config.device)
+    sample_joint_trajectory, obs_2_d, actions_2_d, rewards_2_d = process_stationary_trajectory(env=env,
+                                                                                               model=model,
+                                                                                               task_0=task_0,
+                                                                                               max_episode_len=2000,
+                                                                                               device=config.device)
 
-    sample_joint_trajectory, obs_2_d, actions_2_d, rewards_2_d = process_joint_trajectory(env=env,
-                                                                                          model=model,
-                                                                                          task_0=task_0,
-                                                                                          task_1=task_1,
-                                                                                          max_episode_len=max_episode_len,
-                                                                                          device=config.device)
+    # sample_joint_trajectory, obs_2_d, actions_2_d, rewards_2_d = process_joint_trajectory(env=env,
+    #                                                                                       model=model,
+    #                                                                                       task_0=task_0,
+    #                                                                                       task_1=task_1,
+    #                                                                                       max_episode_len=max_episode_len,
+    #                                                                                       device=config.device)
 
     ref_labels = kmeans.predict(sample_joint_trajectory)
     ref_transitions = np.stack([ref_labels[:-1], ref_labels[1:]], axis=1)
