@@ -63,9 +63,30 @@ class CPD:
             g_k.append(S_k[-1] - min_S_k)
 
             if g_k[-1] > self.cpd_config.cusum_thresh:
-                n_c = S_k.index(min(S_k))
+                n_c = S_k.index(min_S_k)
                 # break
 
         return n_c, g_k
 
+    def windowed_shiryaev(self):
 
+        n_c, s_k, S_k, g_k = 0, [], [], []
+
+        for k in range(len(self.window_queue)):
+
+            curr_sample = self.window_queue[k]
+
+            p_0 = self.dist_0.pdf(curr_sample)
+            p_1 = self.dist_1.pdf(curr_sample)
+
+            s_k.append(p_1 / p_0)
+            S_k.append(np.prod(s_k))
+
+            # min_S_k = min(S_k)
+            g_k.append(sum(S_k))
+
+            if g_k[-1] > self.cpd_config.cusum_thresh:
+                n_c = S_k.index(max(S_k))
+                # break
+
+        return n_c, g_k
