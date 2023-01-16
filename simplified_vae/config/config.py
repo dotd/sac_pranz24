@@ -134,6 +134,7 @@ class CPDConfig(BaseModel):
 
     median_window_size = 20
 
+
 class TWRConfig(BaseModel):
 
     obs_shape: int = 10

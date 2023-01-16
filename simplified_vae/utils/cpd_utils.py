@@ -46,13 +46,16 @@ class CPD:
                 dist_1_oldest_transition = self.dist_1.update_transition(curr_transition=curr_transition)
                 self.dist_0.update_transition(curr_transition=dist_1_oldest_transition)
 
-        n_c, g_k = self.windowed_cusum() if len(self.window_queue) == self.window_length else None, None
+        n_c, g_k = self.windowed_cusum() if len(self.window_queue) == self.window_length else (None, None)
+
+        if n_c:
+            print("Change Point Detected!!!")
 
         return n_c, g_k
 
     def windowed_cusum(self):
 
-        n_c, s_k, S_k, g_k, medians_k = 0, [], [], [], []
+        n_c, s_k, S_k, g_k, medians_k = None, [], [], [], []
 
         for k in range(len(self.window_queue)):
 
