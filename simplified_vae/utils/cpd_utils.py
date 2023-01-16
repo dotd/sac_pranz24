@@ -17,12 +17,10 @@ class CPD:
         self.cpd_config = cpd_config
         self.window_length = window_length
 
-        self.dist_0_queue_len = int(window_length * self.cpd_config.alpha_val)
-        self.dist_1_queue_len = int(window_length * (1 - self.cpd_config.alpha_val))
         self.window_queue = deque(maxlen=window_length)
 
-        self.dist_0: MarkovDistribution = MarkovDistribution(state_num=cpd_config.clusters_num, window_length=self.dist_0_queue_len)
-        self.dist_1: MarkovDistribution = MarkovDistribution(state_num=cpd_config.clusters_num, window_length=self.dist_1_queue_len)
+        self.dist_0: MarkovDistribution = MarkovDistribution(state_num=cpd_config.clusters_num, window_length=self.cpd_config.transition_dist_window_size)
+        self.dist_1: MarkovDistribution = MarkovDistribution(state_num=cpd_config.clusters_num, window_length=self.cpd_config.transition_dist_window_size)
 
         self.oldest_transition = None
 
@@ -31,9 +29,6 @@ class CPD:
     def update_transition(self, curr_transition: Tuple[int, int]):
 
         self.window_queue.append(curr_transition)
-
-        if len(self.window_queue) == 50:
-            a = 1
 
         if not self.dist_0.full: # dist_0 is not full
             self.dist_0.update_transition(curr_transition=curr_transition)

@@ -37,7 +37,7 @@ def load_checkpoint(checkpoint_path: str,
                     model: nn.Module,
                     optimizer=None):
 
-    checkpoint = torch.load(checkpoint_path)
+    checkpoint = torch.load(checkpoint_path, map_location=torch.device('cpu'))
     model.load_state_dict(checkpoint['model_state_dict'])
     epoch = checkpoint['epoch']
     loss = checkpoint['loss']

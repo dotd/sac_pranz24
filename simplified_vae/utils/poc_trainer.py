@@ -48,9 +48,9 @@ class POCTrainer:
                            num_inputs=self.obs_dim,
                            action_space=env.action_space) for _ in range(config.agent.agents_num)]
 
-        cpd_num = len(self.config.cpd.transition_window_lengths)
+        cpd_num = len(self.config.cpd.cusum_window_lengths)
         self.cpds = [CPD(cpd_config=self.config.cpd,
-                         window_length=self.config.cpd.transition_window_lengths[i]) for i in range(cpd_num)]
+                         window_length=self.config.cpd.cusum_window_lengths[i]) for i in range(cpd_num)]
 
         self.clusterer = Clusterer(config=self.config, rg=self.rg)
 

@@ -11,11 +11,14 @@ from simplified_vae.utils.markov_dist import MarkovDistribution
 from simplified_vae.utils.env_utils import make_stationary_env, collect_stationary_trajectories, set_seed, \
     sample_stationary_trajectory
 from simplified_vae.utils.model_utils import init_model, all_to_device
+from simplified_vae.utils.online_median_filter import RunningMedian
 from simplified_vae.utils.vae_storage import Buffer
 
 def run_cusum(curr_transitions, markov_dist_0, markov_dist_1):
 
-    n_c, s_k, S_k, g_k = 0, [], [], []
+    running_median_g_k = RunningMedian(window=20)
+
+    n_c, s_k, S_k, g_k, medians_k = 0, [], [], [], []
     sample_len = len(curr_transitions)
     for k in range(sample_len):
 
@@ -30,12 +33,16 @@ def run_cusum(curr_transitions, markov_dist_0, markov_dist_1):
         min_S_k = min(S_k)
         g_k.append(S_k[-1] - min_S_k)
 
-        if g_k[-1] > 10:
+        curr_median = running_median_g_k.update(S_k[-1] - min_S_k)
+        medians_k.append(curr_median)
+
+        if running_median_g_k.median > 10:
+        # if g_k[-1] > 10:
             n_c = S_k.index(min(S_k))
             # break
 
     print(f'n_c = {n_c}')
-    plt.figure(), plt.plot(g_k), plt.show(block=True)
+    plt.figure(), plt.plot(medians_k), plt.show(block=True)
 
 def init_stage(env,
                test_buffer,
@@ -224,7 +231,7 @@ def main():
     sample_joint_trajectory, obs_2_d, actions_2_d, rewards_2_d = process_stationary_trajectory(env=env,
                                                                                                model=model,
                                                                                                task_0=task_0,
-                                                                                               max_episode_len=2000,
+                                                                                               max_episode_len=1000,
                                                                                                device=config.device)
 
     # sample_joint_trajectory, obs_2_d, actions_2_d, rewards_2_d = process_joint_trajectory(env=env,

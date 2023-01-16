@@ -62,6 +62,7 @@ class MarkovDistribution:
     def init_transitions(self, labels: np.ndarray):
 
         curr_transition_mat = np.zeros((self.state_num, self.state_num))
+
         np.add.at(curr_transition_mat, (labels[0:-1], labels[1:]), 1)
 
         curr_column_sum_vec = np.sum(curr_transition_mat, axis=1)[:,np.newaxis]
@@ -69,3 +70,5 @@ class MarkovDistribution:
         self.transition_mat = curr_transition_mat
         self.column_sum_vec = curr_column_sum_vec
 
+        curr_transitios = np.stack([labels[0:-1], labels[1:]], axis=1)
+        self.dist_window_queue.extend(curr_transitios)
