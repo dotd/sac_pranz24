@@ -96,7 +96,7 @@ class AgentConfig(BaseModel):
     num_steps: int = 1000001
     hidden_size: int = 256
     updates_per_step: int = 1
-    start_steps: int = 1000
+    start_steps: int = -1
     target_update_interval: int = 1
     replay_size: int = 1000000
 
@@ -123,7 +123,7 @@ class CPDConfig(BaseModel):
     # window_lens: List = [10, 20, 30]
     alpha_val: float = 0.5
     clusters_num = 10
-    cusum_thresh = 20
+    cusum_thresh = 10
     meta_dist_num: int = 2
     dist_epsilon = 0.00001
 

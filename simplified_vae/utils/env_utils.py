@@ -10,14 +10,13 @@ from scipy.stats import randint
 from simplified_vae.config.config import Config
 from simplified_vae.env.stationary_cheetah_windvel_wrapper import StationaryCheetahWindVelEnv
 from simplified_vae.env.toggle_windvel_env import ToggleWindVelEnv
-from simplified_vae.models.model import GaussianPolicy, DeterministicPolicy
+from simplified_vae.models.sac import SAC
 from simplified_vae.utils.vae_storage import Buffer
 
 
 def sample_stationary_trajectory(env: Union[Env, StationaryCheetahWindVelEnv],
                                  max_env_steps: int,
-                                 actor_model: Optional[GaussianPolicy] = None,
-                                 device: Optional[str] = None):
+                                 agent: Optional[SAC] = None):
 
     # initialize env for the beginning of a new rollout
     obs = env.reset()
@@ -29,10 +28,8 @@ def sample_stationary_trajectory(env: Union[Env, StationaryCheetahWindVelEnv],
 
         # use the most recent ob to decide what to do
         all_obs.append(obs)
-        if actor_model:
-            obs = torch.FloatTensor(obs).to(device).unsqueeze(0)
-            curr_action, _, _ = actor_model.sample(obs)
-            curr_action = curr_action.squeeze().detach().cpu().numpy()
+        if agent:
+            curr_action = agent.select_action(obs)
         else:
             curr_action = env.action_space.sample()
 
@@ -154,7 +151,8 @@ def collect_stationary_trajectories(env: Union[gym.Env,
                                     buffer: Buffer,
                                     episode_num: int,
                                     episode_len: int,
-                                    env_change_freq: int):
+                                    env_change_freq: int,
+                                    agent: Optional[SAC] = None):
 
     for trajectory_idx in range(episode_num):
 
@@ -166,7 +164,9 @@ def collect_stationary_trajectories(env: Union[gym.Env,
         if trajectory_idx % 100 == 0 and trajectory_idx > 0:
             print(f'Train: Episode idx {trajectory_idx}/{episode_num}, task - {env.get_task()}')
 
-        obs, actions, rewards, next_obs, dones = sample_stationary_trajectory(env=env, max_env_steps=episode_len)
+        obs, actions, rewards, next_obs, dones = sample_stationary_trajectory(env=env,
+                                                                              max_env_steps=episode_len,
+                                                                              agent=agent)
 
         buffer.insert(obs=obs,
                       actions=actions,
@@ -201,8 +201,7 @@ def collect_toggle_trajectories(env: Union[gym.Env, StationaryCheetahWindVelEnv]
                                 episode_num: int,
                                 episode_len: int,
                                 tasks: List[np.ndarray],
-                                actor_model: Optional[GaussianPolicy] = None,
-                                device: Optional[int] = None):
+                                agent: Optional[SAC] = None):
 
     task_num = len(tasks)
     per_task_episode_num = episode_num // task_num
@@ -220,8 +219,7 @@ def collect_toggle_trajectories(env: Union[gym.Env, StationaryCheetahWindVelEnv]
 
         obs, actions, rewards, next_obs, dones = sample_stationary_trajectory(env=env,
                                                                               max_env_steps=episode_len,
-                                                                              actor_model=actor_model,
-                                                                              device=device)
+                                                                              agent=agent)
 
         buffer.insert(obs=obs,
                       actions=actions,

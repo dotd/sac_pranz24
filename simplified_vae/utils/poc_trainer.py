@@ -72,7 +72,8 @@ class POCTrainer:
                                         buffer=self.buffer,
                                         episode_num=self.config.cpd.max_episode_num // 2,
                                         episode_len=self.config.cpd.max_episode_len,
-                                        env_change_freq=self.config.cpd.max_episode_num)
+                                        env_change_freq=self.config.cpd.max_episode_num,
+                                        agent=self.agents[0])
 
         # collect episode from Task_1
         self.data_collection_env.set_task(task=self.env.tasks[1])
@@ -81,7 +82,8 @@ class POCTrainer:
                                         buffer=self.buffer,
                                         episode_num=self.config.cpd.max_episode_num // 2,
                                         episode_len=self.config.cpd.max_episode_len,
-                                        env_change_freq=self.config.cpd.max_episode_num)
+                                        env_change_freq=self.config.cpd.max_episode_num,
+                                        agent=self.agents[1])
 
         obs_0, actions_0, rewards_0, next_obs_0 = self.buffer.sample_section(start_idx=0,
                                                                              end_idx=self.config.cpd.max_episode_num // 2)
@@ -133,6 +135,9 @@ class POCTrainer:
             active_agent_idx = 0
 
             while not done:
+
+                if total_steps == 5000:
+                    self.data_collection_env.set_task(task=self.env.tasks[1])
 
                 curr_agent = self.agents[active_agent_idx]
 
