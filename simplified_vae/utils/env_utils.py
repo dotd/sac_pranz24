@@ -160,6 +160,8 @@ def collect_stationary_trajectories(env: Union[gym.Env,
 
         if trajectory_idx % env_change_freq == 0 and trajectory_idx > 0:
             env.set_task(task=None)
+            curr_task = env.get_task()
+            print(f'Task Changed to {curr_task}')
 
         if trajectory_idx % 100 == 0 and trajectory_idx > 0:
             print(f'Train: Episode idx {trajectory_idx}/{episode_num}, task - {env.get_task()}')
