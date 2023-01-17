@@ -3,6 +3,8 @@ from typing import Tuple, List
 
 from collections import deque
 
+import numpy as np
+
 from simplified_vae.config.config import CPDConfig
 from simplified_vae.utils.markov_dist import MarkovDistribution
 from simplified_vae.utils.online_median_filter import RunningMedian
@@ -22,9 +24,6 @@ class CPD:
         self.dists: List[MarkovDistribution] = [MarkovDistribution(state_num=cpd_config.clusters_num, window_length=self.cpd_config.transition_dist_window_size),
                                                 MarkovDistribution(state_num=cpd_config.clusters_num, window_length=self.cpd_config.transition_dist_window_size)]
 
-        # self.dist_0: MarkovDistribution = MarkovDistribution(state_num=cpd_config.clusters_num, window_length=self.cpd_config.transition_dist_window_size)
-        # self.dist_1: MarkovDistribution = MarkovDistribution(state_num=cpd_config.clusters_num, window_length=self.cpd_config.transition_dist_window_size)
-
         self.oldest_transition = None
 
         self.running_median_g_k = RunningMedian(window=self.cpd_config.median_window_size)
@@ -32,17 +31,6 @@ class CPD:
     def update_transition(self, curr_transition: Tuple[int, int], curr_agent_idx: int):
 
         self.window_queue.append(curr_transition)
-
-        # if not self.dist_0.full: # dist_0 is not full
-        #     self.dist_0.update_transition(curr_transition=curr_transition)
-        #
-        # else:
-        #     if not self.dist_1.full: # dist_1 is not full
-        #         self.dist_1.update_transition(curr_transition=curr_transition)
-        #
-        #     else: # both queues are full
-        #         dist_1_oldest_transition = self.dist_1.update_transition(curr_transition=curr_transition)
-        #         self.dist_0.update_transition(curr_transition=dist_1_oldest_transition)
 
         next_agent_idx = int(not(curr_agent_idx))
         if not self.dists[curr_agent_idx].full: # curr dist is not full
@@ -62,12 +50,7 @@ class CPD:
             print("Change Point Detected!!!")
             # Update Queues
             [self.window_queue.popleft() for _ in range(n_c)]
-            self.dists[curr_agent_idx].dist_window_queue.clear()
-
-            # Update transition matrices
-            # TODO update transition matrices
-            self.dists[curr_agent_idx].transition_mat
-            self.dists[curr_agent_idx].column_sum_vec
+            self.dists[curr_agent_idx].reset()
 
         return n_c, g_k
 
@@ -79,9 +62,6 @@ class CPD:
         for k in range(len(self.window_queue)):
 
             curr_sample = self.window_queue[k]
-
-            # p_0 = max(self.dist_0.pdf(curr_sample), self.cpd_config.dist_epsilon)
-            # p_1 = max(self.dist_1.pdf(curr_sample), self.cpd_config.dist_epsilon)
 
             p_0 = max(self.dists[curr_agent_idx].pdf(curr_sample), self.cpd_config.dist_epsilon)
             p_1 = max(self.dists[other_agent_idx].pdf(curr_sample), self.cpd_config.dist_epsilon)

@@ -112,8 +112,8 @@ class POCTrainer:
         per_task_sample_num = self.config.train_buffer.max_episode_len * self.config.train_buffer.max_episode_num // task_num
 
         for cpd in self.cpds:
-            cpd.dist_0.init_transitions(labels=all_labels[:per_task_sample_num])
-            cpd.dist_1.init_transitions(labels=all_labels[per_task_sample_num:])
+            cpd.dists[0].init_transitions(labels=all_labels[:per_task_sample_num])
+            cpd.dists[0].init_transitions(labels=all_labels[per_task_sample_num:])
 
     def train_model(self):
 
@@ -136,7 +136,7 @@ class POCTrainer:
 
             while not done:
 
-                if total_steps == 5000:
+                if total_steps == 1000:
                     self.data_collection_env.set_task(task=self.env.tasks[1])
 
                 curr_agent = self.agents[active_agent_idx]
@@ -286,13 +286,8 @@ class POCTrainer:
                 active_agent_idx = int(not active_agent_idx)
 
             else: # no change, update current transition matrix
-                if active_agent_idx == 0:
-                    self.agents[active_agent_idx].transition_mat = self.cpds[0].dist_0.transition_mat / \
-                                                                   self.cpds[0].dist_0.column_sum_vec
-
-                else:
-                    self.agents[active_agent_idx].transition_mat = self.cpds[0].dist_1.transition_mat / \
-                                                                   self.cpds[0].dist_1.column_sum_vec
+                self.agents[active_agent_idx].transition_mat = self.cpds[0].dists[active_agent_idx].transition_mat / \
+                                                               self.cpds[0].dists[active_agent_idx].column_sum_vec
 
             return active_agent_idx
 

@@ -72,3 +72,10 @@ class MarkovDistribution:
 
         curr_transitios = np.stack([labels[0:-1], labels[1:]], axis=1)
         self.dist_window_queue.extend(curr_transitios)
+
+    def reset(self):
+
+        self.transition_mat: np.ndarray = np.zeros((self.state_num, self.state_num))
+        self.column_sum_vec: np.ndarray = np.zeros((self.state_num, 1))
+
+        self.dist_window_queue.clear()
