@@ -44,7 +44,15 @@ class CPD:
                 oldest_transition = self.dists[next_agent_idx].update_transition(curr_transition=curr_transition)
                 self.dists[curr_agent_idx].update_transition(curr_transition=oldest_transition)
 
-        n_c, g_k = self.windowed_cusum(curr_agent_idx) if len(self.window_queue) == self.window_length else (None, None)
+        # n_c, g_k = self.windowed_cusum(curr_agent_idx) if len(self.window_queue) == self.window_length else (None, None)
+        if self.dists[curr_agent_idx].full and \
+           self.dists[next_agent_idx].full and \
+           len(self.window_queue) == self.window_length:
+
+           n_c, g_k = self.windowed_cusum(curr_agent_idx)
+
+        else:
+            n_c, g_k = None, None
 
         if n_c:
             print("Change Point Detected!!!")

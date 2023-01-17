@@ -113,7 +113,7 @@ class POCTrainer:
 
         for cpd in self.cpds:
             cpd.dists[0].init_transitions(labels=all_labels[:per_task_sample_num])
-            cpd.dists[0].init_transitions(labels=all_labels[per_task_sample_num:])
+            cpd.dists[1].init_transitions(labels=all_labels[per_task_sample_num:])
 
     def train_model(self):
 
@@ -179,7 +179,8 @@ class POCTrainer:
                                                                      reward=reward,
                                                                      hidden_state=hidden_state,
                                                                      prev_label=prev_label,
-                                                                     episode_steps=episode_steps)
+                                                                     episode_steps=episode_steps,
+                                                                     curr_agent_idx=active_agent_idx)
                 # Update policy if CPD is detected
                 active_agent_idx = self.update_policy(n_c, active_agent_idx, episode_steps=episode_steps)
 
@@ -256,7 +257,8 @@ class POCTrainer:
                    reward: torch.Tensor,
                    hidden_state: torch.Tensor,
                    prev_label: np.ndarray,
-                   episode_steps: int):
+                   episode_steps: int,
+                   curr_agent_idx: int):
 
         self.model.eval()
         with torch.no_grad():
@@ -274,7 +276,8 @@ class POCTrainer:
 
         # print(f'curr label = {curr_label}')
         if episode_steps > 0:
-            n_c, g_k = self.cpds[0].update_transition((prev_label.item(), curr_label.item()))
+            n_c, g_k = self.cpds[0].update_transition(curr_transition=(prev_label.item(), curr_label.item()),
+                                                      curr_agent_idx=curr_agent_idx)
         else:
             n_c, g_k = None, None
 
