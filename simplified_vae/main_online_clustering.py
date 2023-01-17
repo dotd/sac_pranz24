@@ -44,6 +44,30 @@ def run_cusum(curr_transitions, markov_dist_0, markov_dist_1):
     print(f'n_c = {n_c}')
     plt.figure(), plt.plot(medians_k), plt.show(block=True)
 
+def run_shiryaev(curr_transitions, markov_dist_0, markov_dist_1):
+
+    n_c, s_k, S_k, g_k = 0, [], [], []
+
+    sample_len = len(curr_transitions)
+    for k in range(sample_len):
+
+        curr_sample = curr_transitions[k, :]
+
+        p_0 = max(markov_dist_0.pdf(curr_sample), 0.000001)
+        p_1 = max(markov_dist_1.pdf(curr_sample), 0.000001)
+
+        s_k.append(p_1 / p_0)
+        S_k.append(np.prod(s_k))
+
+        # min_S_k = min(S_k)
+        g_k.append(sum(S_k))
+
+        if g_k[-1] > 0:
+            n_c = S_k.index(max(S_k))
+            # break
+
+    return n_c, g_k
+
 def init_stage(env,
                test_buffer,
                episode_num,
@@ -244,6 +268,7 @@ def main():
     ref_labels = kmeans.predict(sample_joint_trajectory)
     ref_transitions = np.stack([ref_labels[:-1], ref_labels[1:]], axis=1)
     run_cusum(ref_transitions, markov_dist_0, markov_dist_1)
+    run_shiryaev(ref_transitions, markov_dist_0, markov_dist_1)
 
     done = False
     total_steps = 0
