@@ -136,8 +136,13 @@ class POCTrainer:
 
             while not done:
 
-                if total_steps == 1000:
+                if total_steps == 3500:
                     self.data_collection_env.set_task(task=self.env.tasks[1])
+                    print(f'Changed Task to {self.data_collection_env.get_task()}')
+
+                if total_steps == 7000:
+                    self.data_collection_env.set_task(task=self.env.tasks[0])
+                    print(f'Changed Task to {self.data_collection_env.get_task()}')
 
                 curr_agent = self.agents[curr_agent_idx]
 
@@ -181,8 +186,17 @@ class POCTrainer:
                                                                      prev_label=prev_label,
                                                                      episode_steps=episode_steps,
                                                                      curr_agent_idx=curr_agent_idx)
+
+                if n_c:  # change has been detected
+                    curr_agent_idx = int(not curr_agent_idx)
+
+
+                else:  # no change, update current transition matrix
+                    self.agents[curr_agent_idx].transition_mat = self.cpds[0].dists[curr_agent_idx].transition_mat / \
+                                                                 self.cpds[0].dists[curr_agent_idx].column_sum_vec
+
                 # Update policy if CPD is detected
-                curr_agent_idx = self.update_policy(n_c, curr_agent_idx, episode_steps=episode_steps)
+                # curr_agent_idx = self.update_policy(n_c, curr_agent_idx, episode_steps=episode_steps)
 
                 obs = next_obs
                 prev_label = curr_label

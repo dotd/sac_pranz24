@@ -192,6 +192,61 @@ def process_joint_trajectory(env,
 
     return sample_joint_trajectory, obs_2_d, actions_2_d, rewards_2_d
 
+def process_joint_trajectory_reversed(env,
+                                      model,
+                                      task_0,
+                                      task_1,
+                                      max_episode_len,
+                                      device):
+
+    env.set_task(task=task_0)
+    obs_0, actions_0, rewards_0, next_obs_0, dones_0 = sample_stationary_trajectory(env=env, max_env_steps=max_episode_len)
+
+    env.set_task(task=task_1)
+    obs_1, actions_1, rewards_1, next_obs_1, dones_1 = sample_stationary_trajectory(env=env, max_env_steps=max_episode_len)
+
+    model.eval()
+    with torch.no_grad():
+        obs_0_d, actions_0_d, rewards_0_d, next_obs_0_d = all_to_device(obs_0,
+                                                                        actions_0,
+                                                                        rewards_0,
+                                                                        next_obs_0,
+                                                                        device=device)
+
+        obs_1_d, actions_1_d, rewards_1_d, next_obs_1_d = all_to_device(obs_1,
+                                                                        actions_1,
+                                                                        rewards_1,
+                                                                        next_obs_1,
+                                                                        device=device)
+
+        obs_2 = torch.cat([obs_1_d[:max_episode_len // 2, :],
+                           obs_0_d[:max_episode_len // 2, :]], dim=0)
+
+        actions_2 = torch.cat([actions_1_d[:max_episode_len // 2, :],
+                               actions_0_d[:max_episode_len // 2, :]], dim=0)
+
+        rewards_2 = torch.cat([rewards_1_d[:max_episode_len // 2, :],
+                               rewards_0_d[:max_episode_len // 2, :]], dim=0)
+
+        next_obs_2 = torch.cat([next_obs_1_d[:max_episode_len // 2, :],
+                                next_obs_0_d[:max_episode_len // 2, :]], dim=0)
+
+        # joint Trajectory
+        obs_2_d, actions_2_d, rewards_2_d, next_obs_2_d = all_to_device(obs_2,
+                                                                        actions_2,
+                                                                        rewards_2,
+                                                                        next_obs_2,
+                                                                        device=device)
+
+        latent_sample_2, latent_mean_2, latent_logvar_2, output_0, hidden_state = model.encoder(obs=obs_2_d,
+                                                                                                actions=actions_2_d,
+                                                                                                rewards=rewards_2_d)
+
+        sample_joint_trajectory = latent_mean_2.detach().cpu().numpy()
+
+    return sample_joint_trajectory, obs_2_d, actions_2_d, rewards_2_d
+
+
 def process_stationary_trajectory(env,
                                   model,
                                   task_0,
@@ -268,6 +323,18 @@ def main():
     ref_labels = kmeans.predict(sample_joint_trajectory)
     ref_transitions = np.stack([ref_labels[:-1], ref_labels[1:]], axis=1)
     run_cusum(ref_transitions, markov_dist_0, markov_dist_1)
+
+    # sample_joint_trajectory, obs_2_d, actions_2_d, rewards_2_d = process_joint_trajectory_reversed(env=env,
+    #                                                                                                model=model,
+    #                                                                                                task_0=task_0,
+    #                                                                                                task_1=task_1,
+    #                                                                                                max_episode_len=max_episode_len,
+    #                                                                                                device=config.device)
+
+    # ref_labels = kmeans.predict(sample_joint_trajectory)
+    # ref_transitions = np.stack([ref_labels[:-1], ref_labels[1:]], axis=1)
+    # run_cusum(ref_transitions, markov_dist_1, markov_dist_0)
+
 
     done = False
     total_steps = 0

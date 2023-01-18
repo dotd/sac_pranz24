@@ -128,9 +128,9 @@ class CPDConfig(BaseModel):
     dist_epsilon = 0.00001
 
     max_episode_len: int = 100
-    max_episode_num: int = 500
+    max_episode_num: int = 200
     clusters_queue_size: int = 20000
-    cusum_window_lengths: List = [1000]
+    cusum_window_lengths: List = [3000]
     median_window_size = 20
 
 
