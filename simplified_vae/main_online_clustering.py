@@ -230,7 +230,7 @@ def main():
     obs_dim: int = env.observation_space.shape[0]
     discrete = isinstance(env.action_space, gym.spaces.Discrete)
     action_dim: int = env.action_space.n if discrete else env.action_space.shape[0]
-    episode_num = 2000
+    episode_num = 200
     max_episode_len = 100
     clusters_num = 10
 
@@ -252,23 +252,22 @@ def main():
                                                                       rg=rg,
                                                                       device=config.device)
 
-    sample_joint_trajectory, obs_2_d, actions_2_d, rewards_2_d = process_stationary_trajectory(env=env,
-                                                                                               model=model,
-                                                                                               task_0=task_0,
-                                                                                               max_episode_len=1000,
-                                                                                               device=config.device)
+    # sample_joint_trajectory, obs_2_d, actions_2_d, rewards_2_d = process_stationary_trajectory(env=env,
+    #                                                                                            model=model,
+    #                                                                                            task_0=task_0,
+    #                                                                                            max_episode_len=1000,
+    #                                                                                            device=config.device)
 
-    # sample_joint_trajectory, obs_2_d, actions_2_d, rewards_2_d = process_joint_trajectory(env=env,
-    #                                                                                       model=model,
-    #                                                                                       task_0=task_0,
-    #                                                                                       task_1=task_1,
-    #                                                                                       max_episode_len=max_episode_len,
-    #                                                                                       device=config.device)
+    sample_joint_trajectory, obs_2_d, actions_2_d, rewards_2_d = process_joint_trajectory(env=env,
+                                                                                          model=model,
+                                                                                          task_0=task_0,
+                                                                                          task_1=task_1,
+                                                                                          max_episode_len=max_episode_len,
+                                                                                          device=config.device)
 
     ref_labels = kmeans.predict(sample_joint_trajectory)
     ref_transitions = np.stack([ref_labels[:-1], ref_labels[1:]], axis=1)
     run_cusum(ref_transitions, markov_dist_0, markov_dist_1)
-    run_shiryaev(ref_transitions, markov_dist_0, markov_dist_1)
 
     done = False
     total_steps = 0

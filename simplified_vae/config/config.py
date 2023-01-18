@@ -123,15 +123,14 @@ class CPDConfig(BaseModel):
     # window_lens: List = [10, 20, 30]
     alpha_val: float = 0.5
     clusters_num = 10
-    cusum_thresh = 10
+    cusum_thresh = 7
     meta_dist_num: int = 2
     dist_epsilon = 0.00001
 
     max_episode_len: int = 100
-    max_episode_num: int = 2000
+    max_episode_num: int = 500
     clusters_queue_size: int = 20000
     cusum_window_lengths: List = [1000]
-    transition_dist_window_size = 99999
     median_window_size = 20
 
 

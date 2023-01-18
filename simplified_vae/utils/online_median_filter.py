@@ -13,6 +13,11 @@ class RunningMedian:
         self._sortedlist = SortedList(self._queue)
         self.half = len(self._queue) // 2
 
+    def clear(self):
+        self._queue.clear()
+        self._sortedlist.clear()
+        self.half = 0
+
     def update(self, curr_sample):
 
         if len(self._queue) < self.window:

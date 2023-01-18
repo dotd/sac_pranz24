@@ -49,7 +49,7 @@ class POCTrainer:
                            action_space=env.action_space) for _ in range(config.agent.agents_num)]
 
         cpd_num = len(self.config.cpd.cusum_window_lengths)
-        self.cpds = [CPD(cpd_config=self.config.cpd,
+        self.cpds = [CPD(config=self.config,
                          window_length=self.config.cpd.cusum_window_lengths[i]) for i in range(cpd_num)]
 
         self.clusterer = Clusterer(config=self.config, rg=self.rg)
@@ -109,7 +109,7 @@ class POCTrainer:
         all_labels = self.clusterer.init_clusters(latent_mean_h)
 
         task_num = len(self.env.tasks)
-        per_task_sample_num = self.config.train_buffer.max_episode_len * self.config.train_buffer.max_episode_num // task_num
+        per_task_sample_num = self.config.cpd.max_episode_len * self.config.cpd.max_episode_num // task_num
 
         for cpd in self.cpds:
             cpd.dists[0].init_transitions(labels=all_labels[:per_task_sample_num])
@@ -132,14 +132,14 @@ class POCTrainer:
             self.data_collection_env.set_task(self.env.tasks[0])
 
             prev_label = None
-            active_agent_idx = 0
+            curr_agent_idx = 0
 
             while not done:
 
                 if total_steps == 1000:
                     self.data_collection_env.set_task(task=self.env.tasks[1])
 
-                curr_agent = self.agents[active_agent_idx]
+                curr_agent = self.agents[curr_agent_idx]
 
                 if self.config.agent.start_steps > total_steps:
                     action = self.data_collection_env.action_space.sample()  # Sample random action
@@ -180,9 +180,9 @@ class POCTrainer:
                                                                      hidden_state=hidden_state,
                                                                      prev_label=prev_label,
                                                                      episode_steps=episode_steps,
-                                                                     curr_agent_idx=active_agent_idx)
+                                                                     curr_agent_idx=curr_agent_idx)
                 # Update policy if CPD is detected
-                active_agent_idx = self.update_policy(n_c, active_agent_idx, episode_steps=episode_steps)
+                curr_agent_idx = self.update_policy(n_c, curr_agent_idx, episode_steps=episode_steps)
 
                 obs = next_obs
                 prev_label = curr_label
@@ -283,16 +283,16 @@ class POCTrainer:
 
         return hidden_state, curr_label, n_c, g_k
 
-    def update_policy(self, n_c, active_agent_idx: int, episode_steps: int):
+    def update_policy(self, n_c, curr_agent_idx: int, episode_steps: int):
 
-            if n_c: # change has been detected
-                active_agent_idx = int(not active_agent_idx)
+        if n_c: # change has been detected
+            curr_agent_idx = int(not curr_agent_idx)
 
-            else: # no change, update current transition matrix
-                self.agents[active_agent_idx].transition_mat = self.cpds[0].dists[active_agent_idx].transition_mat / \
-                                                               self.cpds[0].dists[active_agent_idx].column_sum_vec
+        else: # no change, update current transition matrix
+            self.agents[curr_agent_idx].transition_mat = self.cpds[0].dists[curr_agent_idx].transition_mat / \
+                                                         self.cpds[0].dists[curr_agent_idx].column_sum_vec
 
-            return active_agent_idx
+        return curr_agent_idx
 
     def test_iter(self, obs: torch.Tensor,
                         actions: torch.Tensor,
