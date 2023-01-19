@@ -34,6 +34,7 @@ class POCTrainer:
 
         self.env: Union[StationaryCheetahWindVelEnv, ToggleWindVelEnv] = env
         self.data_collection_env: StationaryCheetahWindVelEnv = data_collection_env
+
         self.obs_dim: int = env.observation_space.shape[0]
         discrete = isinstance(env.action_space, gym.spaces.Discrete)
         self.action_dim: int = env.action_space.n if discrete else env.action_space.shape[0]
@@ -48,9 +49,8 @@ class POCTrainer:
                            num_inputs=self.obs_dim,
                            action_space=env.action_space) for _ in range(config.agent.agents_num)]
 
-        cpd_num = len(self.config.cpd.cusum_window_lengths)
-        self.cpds = [CPD(config=self.config,
-                         window_length=self.config.cpd.cusum_window_lengths[i]) for i in range(cpd_num)]
+        cpd_num = self.config.cpd.cusum_window_length
+        self.cpd = CPD(config=self.config, window_length=self.config.cpd.cusum_window_length)
 
         self.clusterer = Clusterer(config=self.config, rg=self.rg)
 
@@ -67,7 +67,6 @@ class POCTrainer:
 
         # Collect episodes from Task_0
         self.data_collection_env.set_task(task=self.env.tasks[0])
-        task_0 = self.data_collection_env.get_task()
         collect_stationary_trajectories(env=self.data_collection_env,
                                         buffer=self.buffer,
                                         episode_num=self.config.cpd.max_episode_num // 2,
@@ -77,7 +76,6 @@ class POCTrainer:
 
         # collect episode from Task_1
         self.data_collection_env.set_task(task=self.env.tasks[1])
-        task_1 = self.data_collection_env.get_task()
         collect_stationary_trajectories(env=self.data_collection_env,
                                         buffer=self.buffer,
                                         episode_num=self.config.cpd.max_episode_num // 2,
@@ -111,9 +109,8 @@ class POCTrainer:
         task_num = len(self.env.tasks)
         per_task_sample_num = self.config.cpd.max_episode_len * self.config.cpd.max_episode_num // task_num
 
-        for cpd in self.cpds:
-            cpd.dists[0].init_transitions(labels=all_labels[:per_task_sample_num])
-            cpd.dists[1].init_transitions(labels=all_labels[per_task_sample_num:])
+        self.cpd.dists[0].init_transitions(labels=all_labels[:per_task_sample_num])
+        self.cpd.dists[1].init_transitions(labels=all_labels[per_task_sample_num:])
 
     def train_model(self):
 
@@ -128,26 +125,19 @@ class POCTrainer:
             episode_reward = 0
             episode_steps = 0
             done = False
-            obs = self.data_collection_env.reset()
-            self.data_collection_env.set_task(self.env.tasks[0])
+
+            self.env.set_task(self.env.tasks[0])
+            obs = self.env.reset()
 
             prev_label = None
             curr_agent_idx = 0
 
             while not done:
 
-                if total_steps == 3500:
-                    self.data_collection_env.set_task(task=self.env.tasks[1])
-                    print(f'Changed Task to {self.data_collection_env.get_task()}')
-
-                if total_steps == 7000:
-                    self.data_collection_env.set_task(task=self.env.tasks[0])
-                    print(f'Changed Task to {self.data_collection_env.get_task()}')
-
                 curr_agent = self.agents[curr_agent_idx]
 
                 if self.config.agent.start_steps > total_steps:
-                    action = self.data_collection_env.action_space.sample()  # Sample random action
+                    action = self.env.action_space.sample()  # Sample random action
                 else:
                     action = curr_agent.select_action(obs)  # Sample action from policy
 
@@ -171,11 +161,11 @@ class POCTrainer:
                         self.logger.add_scalar('entropy_temprature/alpha', alpha, updates)
                         updates += 1
 
-                next_obs, reward, done, _ = self.data_collection_env.step(action)  # Step
+                next_obs, reward, done, _ = self.env.step(action)  # Step
 
                 # Ignore the "done" signal if it comes from hitting the time horizon.
                 # (https://github.com/openai/spinningup/blob/master/spinup/algos/sac/sac.py)
-                mask = 1 if episode_steps == self.data_collection_env._max_episode_steps else float(not done)
+                mask = 1 if episode_steps == self.env._max_episode_steps else float(not done)
                 curr_agent.replay_memory.push(obs, action, reward, next_obs, mask)  # Append transition to memory
 
                 # update CPD estimation
@@ -192,8 +182,8 @@ class POCTrainer:
 
 
                 else:  # no change, update current transition matrix
-                    self.agents[curr_agent_idx].transition_mat = self.cpds[0].dists[curr_agent_idx].transition_mat / \
-                                                                 self.cpds[0].dists[curr_agent_idx].column_sum_vec
+                    self.agents[curr_agent_idx].transition_mat = self.cpd.dists[curr_agent_idx].transition_mat / \
+                                                                 self.cpd.dists[curr_agent_idx].column_sum_vec
 
                 # Update policy if CPD is detected
                 # curr_agent_idx = self.update_policy(n_c, curr_agent_idx, episode_steps=episode_steps)
@@ -252,9 +242,9 @@ class POCTrainer:
             curr_label = self.clusterer.predict(curr_latent_mean)
             # print(f'curr label = {curr_label}')
             if episode_steps > 0:
-                n_c, g_k = self.cpds[0].update_transition((prev_label.item(), curr_label.item()))
+                n_c, g_k = self.cpd.update_transition((prev_label.item(), curr_label.item()))
                 if n_c:
-                    self.add_meta_distribution(self.cpds[0])
+                    self.add_meta_distribution(self.cpd)
 
                 # curr_cpd_estim = [cpd.update_transition((prev_label, curr_label)) for cpd in self.cpds]
 
@@ -290,8 +280,8 @@ class POCTrainer:
 
         # print(f'curr label = {curr_label}')
         if episode_steps > 0:
-            n_c, g_k = self.cpds[0].update_transition(curr_transition=(prev_label.item(), curr_label.item()),
-                                                      curr_agent_idx=curr_agent_idx)
+            n_c, g_k = self.cpd.update_transition(curr_transition=(prev_label.item(), curr_label.item()),
+                                                     curr_agent_idx=curr_agent_idx)
         else:
             n_c, g_k = None, None
 
@@ -303,8 +293,8 @@ class POCTrainer:
             curr_agent_idx = int(not curr_agent_idx)
 
         else: # no change, update current transition matrix
-            self.agents[curr_agent_idx].transition_mat = self.cpds[0].dists[curr_agent_idx].transition_mat / \
-                                                         self.cpds[0].dists[curr_agent_idx].column_sum_vec
+            self.agents[curr_agent_idx].transition_mat = self.cpd.dists[curr_agent_idx].transition_mat / \
+                                                         self.cpd.dists[curr_agent_idx].column_sum_vec
 
         return curr_agent_idx
 

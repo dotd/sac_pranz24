@@ -1,14 +1,10 @@
 import random
+import numpy as np
 from typing import List
 
 import gym
 from gym import Wrapper
-import numpy as np
-# import wandb
 from gym import spaces
-
-# Same environment as in LILAC for Half cheetah Windvel
-from torch.utils.tensorboard import SummaryWriter
 
 from simplified_vae.config.config import Config
 
@@ -28,8 +24,8 @@ class ToggleWindVelEnv(Wrapper):
         self.config: Config = config
         self.summary_writer = config.logger
 
-        self.change_freq: int = config.task.env_change_freq
-        self.next_change: int = change_increments(self.change_freq)  # for poisson_dist process only
+        self.change_freq: int = int((config.cpd.cusum_window_length + config.cpd.env_window_delta) * config.cpd.freq_multiplier)
+        self.next_change: int = self.change_freq + change_increments(config.cpd.poisson_freq)  # for poisson_dist process only
         self.action_dim: int = self.env.action_space.shape[0]
         self.counter: int = 0
 
@@ -51,11 +47,11 @@ class ToggleWindVelEnv(Wrapper):
 
         self.tasks: List = [self.task_space.sample(), self.task_space.sample()]
 
-        self.task_idx: int = 1
+        self.task_idx: int = 0
 
         self.ep_length: int = 0
         self.cum_rwd: int = 0
-        self.poisson_dist: bool = config.task.poisson_dist  # whether or not to generate random time changes
+        self.poisson_dist: bool = config.cpd.poisson_dist  # whether or not to generate random time changes
 
     @property
     def current_task(self):
@@ -68,15 +64,19 @@ class ToggleWindVelEnv(Wrapper):
         return np.asarray([self.default_target_vel, self.default_wind_frc])
 
     def set_task(self, task):
+
         if task is None:
-            self.task = self.task_space.sample()
-        else:
-            self.task = task
+            raise NotImplemented
+
+        self.task = task
 
     def step(self, action):
 
-        if self.counter - self.next_change == 0 and self.counter > 0 and self.poisson_dist:
-            jump = change_increments(self.change_freq)
+        if self.counter == self.next_change and \
+           self.counter > 0 and \
+           self.poisson_dist:
+
+            jump = self.change_freq + change_increments(self.config.cpd.poisson_freq)
             if jump == 0:
                 jump += 1
 
@@ -84,15 +84,18 @@ class ToggleWindVelEnv(Wrapper):
             self.task_idx = int(not self.task_idx)
             self.set_task(task=self.tasks[self.task_idx])
 
-            print("CHANGED TO TASK {} AT STEP {}!".format(self.current_task, self.counter))
+            print(f'CHANGED TO TASK {self.current_task} AT STEP {self.counter}!')
 
             self.summary_writer.add_scalar(tag='env/target_velocity', scalar_value=self.task[0], global_step=self.counter)
             self.summary_writer.add_scalar(tag='env/wind_friction', scalar_value=self.task[1], global_step=self.counter)
 
-        if self.counter % self.change_freq == 0 and self.counter > 0 and not self.poisson_dist:
+        if self.counter % self.change_freq == 0 and \
+           self.counter > 0 and \
+           not self.poisson_dist:
+
             self.task_idx = int(not self.task_idx)
             self.set_task(task=self.tasks[self.task_idx])
-            print("CHANGED TO TASK {} AT STEP {}!".format(self.current_task, self.counter))
+            print(f'CHANGED TO TASK {self.current_task} AT STEP {self.counter}!')
 
             self.summary_writer.add_scalar(tag='env/target_velocity', scalar_value=self.task[0], global_step=self.counter)
             self.summary_writer.add_scalar(tag='env/wind_friction', scalar_value=self.task[1], global_step=self.counter)

@@ -64,8 +64,7 @@ class TaskConfig(BaseModel):
     high_target_vel: float = 3.
     low_wind_frc: float = 0.
     high_wind_frc: float = 20.
-    poisson_dist: bool = False
-    env_change_freq: int = 10000
+
 
 class BufferConfig(BaseModel):
 
@@ -106,6 +105,7 @@ class AgentConfig(BaseModel):
 
     agents_num: int = 2
 
+
 class ModelConfig(BaseModel):
 
     use_rnn_model: bool = False
@@ -120,7 +120,6 @@ class ModelConfig(BaseModel):
 
 class CPDConfig(BaseModel):
 
-    # window_lens: List = [10, 20, 30]
     alpha_val: float = 0.5
     clusters_num = 10
     cusum_thresh = 7
@@ -130,8 +129,13 @@ class CPDConfig(BaseModel):
     max_episode_len: int = 100
     max_episode_num: int = 200
     clusters_queue_size: int = 20000
-    cusum_window_lengths: List = [3000]
     median_window_size = 20
+
+    cusum_window_length: int = 3000
+    env_window_delta = 200
+    poisson_freq = 100
+    freq_multiplier = 1
+    poisson_dist: bool = False
 
 
 class TWRConfig(BaseModel):
