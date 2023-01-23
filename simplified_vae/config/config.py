@@ -51,7 +51,7 @@ class TrainingConfig(BaseModel):
     use_kl_posterior_loss: bool = False
     use_stationary_trajectories: bool = False
 
-    env_change_freq: int = 100
+    sum_reward_window_size = 100
     eval_freq: int = 50
     print_train_loss_freq = 50
 
@@ -74,8 +74,8 @@ class BufferConfig(BaseModel):
 
 class TrainBufferConfig(BufferConfig):
 
-    max_episode_len: int = 100
-    max_episode_num: int = 200
+    max_episode_len: int = 1000000
+    max_episode_num: int = 2
 
 
 class TestBufferConfig(BufferConfig):
@@ -95,7 +95,7 @@ class AgentConfig(BaseModel):
     num_steps: int = 1000001
     hidden_size: int = 256
     updates_per_step: int = 1
-    start_steps: int = 10000
+    start_steps: int = -1
     target_update_interval: int = 1
     replay_size: int = 1000000
 
@@ -104,6 +104,7 @@ class AgentConfig(BaseModel):
     automatic_entropy_tuning = automatic_entropy_tuning
 
     agents_num: int = 2
+
 
 class ModelConfig(BaseModel):
 
@@ -119,12 +120,22 @@ class ModelConfig(BaseModel):
 
 class CPDConfig(BaseModel):
 
-    # window_lens: List = [10, 20, 30]
-    window_lengths: List = [200]
     alpha_val: float = 0.5
-    clusters_num = 5
-    cusum_thresh = 10
+    clusters_num = 10
+    cusum_thresh = 7
     meta_dist_num: int = 2
+    dist_epsilon = 0.00001
+
+    max_episode_len: int = 100
+    max_episode_num: int = 200
+    clusters_queue_size: int = 20000
+    median_window_size = 20
+
+    cusum_window_length: int = 3000
+    env_window_delta = 200
+    poisson_freq = 100
+    freq_multiplier = 1
+    poisson_dist: bool = False
 
 
 class TWRConfig(BaseModel):
@@ -134,7 +145,7 @@ class TWRConfig(BaseModel):
     hidden_size: int = 32
     n_layers: int = 5
     init_std: int = - 1
-    loss_type: str = 'KL' # 'KL', 'exp' or 'sqrt'
+    loss_type: str = 'KL'
 
     n_trajectories: int = 1
     length: int = 1000
