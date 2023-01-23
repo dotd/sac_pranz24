@@ -74,7 +74,7 @@ class BufferConfig(BaseModel):
 
 class TrainBufferConfig(BufferConfig):
 
-    max_episode_len: int = 100000
+    max_episode_len: int = 1000000
     max_episode_num: int = 2
 
 
