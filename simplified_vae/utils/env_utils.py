@@ -1,3 +1,4 @@
+import random
 from typing import Union, List, Optional
 
 import gym
@@ -184,7 +185,7 @@ def collect_stationary_trajectories(env: Union[gym.Env,
             curr_task = env.get_task()
             print(f'Task Changed to {curr_task}')
 
-        if trajectory_idx % 100 == 0 and trajectory_idx > 0:
+        if trajectory_idx % 100 == 0:
             print(f'Train: Episode idx {trajectory_idx}/{episode_num}, task - {env.get_task()}')
 
         obs, actions, rewards, next_obs, dones = sample_stationary_trajectory(env=env,
@@ -256,3 +257,4 @@ def set_seed(seed: int):
 
     torch.manual_seed(seed)
     np.random.seed(seed)
+    random.seed(seed)

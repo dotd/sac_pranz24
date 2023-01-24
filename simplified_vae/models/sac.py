@@ -1,4 +1,6 @@
 import os
+
+import numpy as np
 import torch
 import torch.nn.functional as F
 from torch.optim import Adam
@@ -6,6 +8,7 @@ from torch.optim import Adam
 from simplified_vae.config.config import Config
 from simplified_vae.utils.agent_utils import soft_update, hard_update
 from simplified_vae.models.model import GaussianPolicy, QNetwork, DeterministicPolicy
+from src.utils.replay_memory import ReplayMemory
 
 
 class SAC(object):
@@ -15,6 +18,7 @@ class SAC(object):
                  num_inputs: int,
                  action_space):
 
+        self.config = config
         self.gamma = config.agent.gamma
         self.tau = config.agent.tau
         self.alpha = config.agent.alpha
@@ -31,6 +35,10 @@ class SAC(object):
         self.critic_target = QNetwork(num_inputs, action_space.shape[0], config.agent.hidden_size).to(self.device)
         hard_update(self.critic_target, self.critic)
 
+        self.replay_memory = ReplayMemory(config.agent.replay_size, config.seed)
+
+        self.transition_mat: np.ndarray = np.zeros((self.config.cpd.clusters_num,
+                                                    self.config.cpd.clusters_num))
         if self.policy_type == "Gaussian":
             # Target Entropy = −dim(A) (e.g. , -6 for HalfCheetah-v2) as given in the paper
             if self.automatic_entropy_tuning is True:
@@ -46,8 +54,7 @@ class SAC(object):
         else:
             self.alpha = 0
             self.automatic_entropy_tuning = False
-            self.policy = DeterministicPolicy(num_inputs, action_space.shape[0], config.agent.hidden_size,
-                                              action_space).to(self.device)
+            self.policy = DeterministicPolicy(num_inputs, action_space.shape[0], config.agent.hidden_size, action_space).to(self.device)
             self.policy_optim = Adam(self.policy.parameters(), lr=config.agent.lr)
 
     def select_action(self, state, evaluate=False):
@@ -73,8 +80,7 @@ class SAC(object):
             qf1_next_target, qf2_next_target = self.critic_target(next_state_batch, next_state_action)
             min_qf_next_target = torch.min(qf1_next_target, qf2_next_target) - self.alpha * next_state_log_pi
             next_q_value = reward_batch + mask_batch * self.gamma * (min_qf_next_target)
-        qf1, qf2 = self.critic(state_batch,
-                               action_batch)  # Two Q-functions to mitigate positive bias in the policy improvement step
+        qf1, qf2 = self.critic(state_batch, action_batch)  # Two Q-functions to mitigate positive bias in the policy improvement step
         qf1_loss = F.mse_loss(qf1, next_q_value)  # JQ = 𝔼(st,at)~D[0.5(Q1(st,at) - r(st,at) - γ(𝔼st+1~p[V(st+1)]))^2]
         qf2_loss = F.mse_loss(qf2, next_q_value)  # JQ = 𝔼(st,at)~D[0.5(Q1(st,at) - r(st,at) - γ(𝔼st+1~p[V(st+1)]))^2]
         qf_loss = qf1_loss + qf2_loss
@@ -88,8 +94,7 @@ class SAC(object):
         qf1_pi, qf2_pi = self.critic(state_batch, pi)
         min_qf_pi = torch.min(qf1_pi, qf2_pi)
 
-        policy_loss = ((
-                                   self.alpha * log_pi) - min_qf_pi).mean()  # Jπ = 𝔼st∼D,εt∼N[α * logπ(f(εt;st)|st) − Q(st,f(εt;st))]
+        policy_loss = ((self.alpha * log_pi) - min_qf_pi).mean() # Jπ = 𝔼st∼D,εt∼N[α * logπ(f(εt;st)|st) − Q(st,f(εt;st))]
 
         self.policy_optim.zero_grad()
         policy_loss.backward()
@@ -103,10 +108,11 @@ class SAC(object):
             self.alpha_optim.step()
 
             self.alpha = self.log_alpha.exp()
-            alpha_tlogs = self.alpha.clone()  # For TensorboardX logs
+            alpha_tlogs = self.alpha.clone() # For TensorboardX logs
         else:
             alpha_loss = torch.tensor(0.).to(self.device)
-            alpha_tlogs = torch.tensor(self.alpha)  # For TensorboardX logs
+            alpha_tlogs = torch.tensor(self.alpha) # For TensorboardX logs
+
 
         if updates % self.target_update_interval == 0:
             soft_update(self.critic_target, self.critic, self.tau)

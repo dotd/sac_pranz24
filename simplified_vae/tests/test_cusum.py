@@ -18,6 +18,7 @@ def main():
     all_samples = np.concatenate([dist_0_samples, dist_1_samples], axis=0)
     thresh = 10
     n_c, s_k, S_k, g_k = 0, [], [], []
+    done = False
 
     for k in range(episode_len):
 
@@ -32,9 +33,10 @@ def main():
         min_S_k = min(S_k)
         g_k.append(S_k[-1] - min_S_k)
 
-        if g_k[-1] > thresh:
-            n_c = S_k.index(min(S_k))
-            # break
+        if g_k[-1] > thresh and not done:
+            n_c = k #S_k.index(min(S_k))
+            done = True
+            break
 
     print(f'n_c = {n_c}')
     plt.figure(), plt.plot(g_k), plt.show(block=True)
