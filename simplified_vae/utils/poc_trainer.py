@@ -6,6 +6,7 @@ import gym
 import numpy as np
 import torch
 from torch.utils.tensorboard import SummaryWriter
+import wandb
 
 from simplified_vae.config.config import Config
 from simplified_vae.env.toggle_windvel_env import ToggleWindVelEnv
@@ -159,6 +160,10 @@ class POCTrainer:
                         self.logger.add_scalar('agent_loss/policy', policy_loss, updates)
                         self.logger.add_scalar('agent_loss/entropy_loss', ent_loss, updates)
                         self.logger.add_scalar('entropy_temprature/alpha', alpha, updates)
+                        wandb.log({'agent_loss/critic_1': critic_1_loss, 'agent_loss/critic_2': critic_2_loss,
+                                   'agent_loss/policy': policy_loss, 'agent_loss/entropy_loss': ent_loss,
+                                   'entropy_temprature/alpha': alpha}, step=updates)
+
                         updates += 1
 
                 next_obs, reward, done, _ = self.env.step(action)  # Step
@@ -198,6 +203,7 @@ class POCTrainer:
                 if total_steps > self.config.training.sum_reward_window_size:
                     sum_reward = sum([curr for curr in sum_reward_window])
                     self.logger.add_scalar('reward/train', sum_reward, total_steps)
+                    wandb.log({'reward/train': sum_reward}, step=total_steps)
 
                     if total_steps % self.config.training.print_train_loss_freq == 0:
                         print(f'Curr Idx = {total_steps}, Sum Reward = {sum_reward}')
