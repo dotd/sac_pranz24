@@ -1,18 +1,23 @@
-from typing import Union
+from typing import Union, List, Optional
 
 import gym
 import numpy as np
 from gym import Env
 import torch
+import torch.nn as nn
 from scipy.stats import randint
 
 from simplified_vae.config.config import Config
+from simplified_vae.env.fixed_toggle_windvel_env import FixedToggleWindVelEnv
 from simplified_vae.env.stationary_cheetah_windvel_wrapper import StationaryCheetahWindVelEnv
 from simplified_vae.env.toggle_windvel_env import ToggleWindVelEnv
+from simplified_vae.models.sac import SAC
 from simplified_vae.utils.vae_storage import Buffer
 
 
-def sample_stationary_trajectory(env: Union[Env, StationaryCheetahWindVelEnv], max_env_steps):
+def sample_stationary_trajectory(env: Union[Env, StationaryCheetahWindVelEnv],
+                                 max_env_steps: int,
+                                 agent: Optional[SAC] = None):
 
     # initialize env for the beginning of a new rollout
     obs = env.reset()
@@ -24,7 +29,11 @@ def sample_stationary_trajectory(env: Union[Env, StationaryCheetahWindVelEnv], m
 
         # use the most recent ob to decide what to do
         all_obs.append(obs)
-        curr_action = env.action_space.sample()
+        if agent:
+            curr_action = agent.select_action(obs)
+        else:
+            curr_action = env.action_space.sample()
+
         all_actions.append(curr_action)
 
         # take that action and record results
@@ -114,6 +123,7 @@ def make_stationary_env(config: Config):
 
     return env
 
+
 def make_toggle_env(config: Config):
 
     # Environment
@@ -132,6 +142,31 @@ def make_toggle_env(config: Config):
     torch.manual_seed(config.seed)
     np.random.seed(config.seed)
 
+    env.set_task(env.tasks[0])
+
+    return env
+
+
+def make_fixed_toggle_env(config: Config):
+
+    # Environment
+    max_episode_steps = 100 # TODO fix
+
+    env = gym.make(config.env_name)
+    env.seed(config.seed)
+    env._max_episode_steps = config.train_buffer.max_episode_len
+
+    env = FixedToggleWindVelEnv(env=env, config=config)
+    env._max_episode_steps = max_episode_steps
+
+    env.seed(config.seed)
+    env.action_space.seed(config.seed)
+
+    torch.manual_seed(config.seed)
+    np.random.seed(config.seed)
+
+    env.set_task(env.tasks[0])
+
     return env
 
 def collect_stationary_trajectories(env: Union[gym.Env,
@@ -139,17 +174,22 @@ def collect_stationary_trajectories(env: Union[gym.Env,
                                     buffer: Buffer,
                                     episode_num: int,
                                     episode_len: int,
-                                    env_change_freq: int):
+                                    env_change_freq: int,
+                                    agent: Optional[SAC] = None):
 
     for trajectory_idx in range(episode_num):
 
         if trajectory_idx % env_change_freq == 0 and trajectory_idx > 0:
             env.set_task(task=None)
+            curr_task = env.get_task()
+            print(f'Task Changed to {curr_task}')
 
         if trajectory_idx % 100 == 0 and trajectory_idx > 0:
             print(f'Train: Episode idx {trajectory_idx}/{episode_num}, task - {env.get_task()}')
 
-        obs, actions, rewards, next_obs, dones = sample_stationary_trajectory(env=env, max_env_steps=episode_len)
+        obs, actions, rewards, next_obs, dones = sample_stationary_trajectory(env=env,
+                                                                              max_env_steps=episode_len,
+                                                                              agent=agent)
 
         buffer.insert(obs=obs,
                       actions=actions,
@@ -178,6 +218,38 @@ def collect_non_stationary_trajectories(env: Union[gym.Env, StationaryCheetahWin
                       rewards=rewards,
                       next_obs=next_obs,
                       dones=dones)
+
+def collect_toggle_trajectories(env: Union[gym.Env, StationaryCheetahWindVelEnv],
+                                buffer: Buffer,
+                                episode_num: int,
+                                episode_len: int,
+                                tasks: List[np.ndarray],
+                                agent: Optional[SAC] = None):
+
+    task_num = len(tasks)
+    per_task_episode_num = episode_num // task_num
+    task_idx = 0
+
+    for trajectory_idx in range(episode_num):
+
+        if trajectory_idx % per_task_episode_num == 0:
+            env.set_task(tasks[task_idx])
+            print(f'Set Task {tasks[task_idx]} in idx {trajectory_idx}/{episode_num}')
+            task_idx += 1
+
+        if trajectory_idx % 100 == 0 and trajectory_idx > 0:
+            print(f'Train: Episode idx {trajectory_idx}/{episode_num}')
+
+        obs, actions, rewards, next_obs, dones = sample_stationary_trajectory(env=env,
+                                                                              max_env_steps=episode_len,
+                                                                              agent=agent)
+
+        buffer.insert(obs=obs,
+                      actions=actions,
+                      rewards=rewards,
+                      next_obs=next_obs,
+                      dones=dones)
+
 
 
 def set_seed(seed: int):

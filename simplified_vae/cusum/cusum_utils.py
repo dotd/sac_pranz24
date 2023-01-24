@@ -1,8 +1,6 @@
-import math
 import numpy as np
 from typing import Tuple, List, Union, Optional
 from collections import deque
-import torch
 from sklearn.cluster import KMeans
 
 
@@ -18,8 +16,8 @@ class MarkovDistribution:
         self.dist_window_queue = deque(maxlen=window_length)
 
         self.clustering: KMeans = clustering
-        self.transition_mat: np.ndarray = np.ones((state_num, state_num)) * np.finfo(float).eps
-        self.column_sum_vec: np.ndarray = np.ones((state_num, 1 )) * np.finfo(float).eps
+        self.transition_mat: np.ndarray = np.zeros((state_num, state_num))
+        self.column_sum_vec: np.ndarray = np.zeros((state_num, 1))
         self.update_num = 0
 
     @property
@@ -32,7 +30,7 @@ class MarkovDistribution:
         self.column_sum_vec: np.ndarray = np.zeros((self.state_num, 1))
 
     def pdf(self, sample: Union[Tuple[Tuple, Tuple], List[List]]):
-        return self.transition_mat[sample[0], sample[1]] / self.column_sum_vec[sample[0], 0]
+        return max(self.transition_mat[sample[0], sample[1]], 0.000001) / min(self.column_sum_vec[sample[0], 0], 10000000)
 
     def rvs(self, size: int):
         raise NotImplementedError
@@ -61,27 +59,23 @@ class MarkovDistribution:
     def probability_mat(self):
         return self.transition_mat / self.column_sum_vec
 
-    def update_transitions(self, trajectories: Union[np.ndarray, torch.Tensor]):
-
-        if isinstance(trajectories, torch.Tensor):
-            trajectories = trajectories.detach().cpu().numpy()
+    def init_transitions(self, labels: np.ndarray):
 
         curr_transition_mat = np.zeros((self.state_num, self.state_num))
 
-        episode_num, seq_len, hidden_dim = trajectories.shape
-        for episode_idx in range(episode_num):
+        np.add.at(curr_transition_mat, (labels[0:-1], labels[1:]), 1)
 
-            curr_trajectory = trajectories[episode_idx, :]
+        curr_column_sum_vec = np.sum(curr_transition_mat, axis=1)[:,np.newaxis]
 
-            # input should be samples_num X sample_dim
-            curr_labels = self.clustering.predict(curr_trajectory)
-            curr_transitions = np.stack([curr_labels[:-1], curr_labels[1:]], axis=1)
+        self.transition_mat = curr_transition_mat
+        self.column_sum_vec = curr_column_sum_vec
 
-            np.add.at(curr_transition_mat, (curr_transitions[:, 0], curr_transitions[:, 1]), 1)
+        curr_transitios = np.stack([labels[0:-1], labels[1:]], axis=1)
+        self.dist_window_queue.extend(curr_transitios)
 
-        curr_transition_mat /= np.sum(curr_transition_mat, axis=1)[:,np.newaxis]
+    def reset(self):
 
-        self.transition_mat = self.transition_mat + (curr_transition_mat - self.transition_mat) / (self.update_num + 1)
-        self.update_num += 1
-        self.transition_mat = np.maximum(self.transition_mat, np.ones_like(self.transition_mat) * 0.000001)
+        self.transition_mat: np.ndarray = np.zeros((self.state_num, self.state_num))
+        self.column_sum_vec: np.ndarray = np.zeros((self.state_num, 1))
 
+        self.dist_window_queue.clear()

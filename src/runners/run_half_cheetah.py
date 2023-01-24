@@ -7,16 +7,13 @@ import itertools
 import torch
 from torch.utils.tensorboard import SummaryWriter
 
-from src.algos.sac import SAC
-from src.environments.wrappers.non_stationary_cheetah_windvel_wrapper import NonStationaryCheetahWindVelEnv
-from src.environments.wrappers.stationary_cheetah_windvel_wrapper import StationaryCheetahWindVelEnv
-from from src.environments.wrappers.toggle_windvel_env_wrapper import ToggleWindVelEnv
+from src.algos.sac_orig import SACOrig
 from src.utils.replay_memory import ReplayMemory
 
 
 def parse_args():
     parser = argparse.ArgumentParser(description='PyTorch Soft Actor-Critic Args')
-    parser.add_argument('--env-name', default="HalfCheetah-v3",
+    parser.add_argument('--env-name', default="HalfCheetah-v2",
                         help='Mujoco Gym environment (default: HalfCheetah-v2)')
     parser.add_argument('--policy', default="Gaussian",
                         help='Policy Type: Gaussian | Deterministic (default: Gaussian)')
@@ -43,13 +40,13 @@ def parse_args():
                         help='hidden size (default: 256)')
     parser.add_argument('--updates_per_step', type=int, default=1, metavar='N',
                         help='model updates per simulator step (default: 1)')
-    parser.add_argument('--start_steps', type=int, default=10000, metavar='N',
+    parser.add_argument('--start_steps', type=int, default=-1, metavar='N',
                         help='Steps sampling random actions (default: 10000)')
     parser.add_argument('--target_update_interval', type=int, default=1, metavar='N',
                         help='Value target update per no. of updates per step (default: 1)')
     parser.add_argument('--replay_size', type=int, default=1000000, metavar='N',
                         help='size of replay buffer (default: 10000000)')
-    parser.add_argument('--cuda', type=str, default='cuda:0',
+    parser.add_argument('--cuda', action="store_true",
                         help='run on CUDA (default: False)')
     parser.add_argument('--save_episodes', type=int, default=2, metavar='N',
                         help='maximum number of steps (default: 1000000)')
@@ -58,24 +55,9 @@ def parse_args():
 
 
 def run_agent_and_environment(arguments):
-
-    # Tesnorboard
-    writer = SummaryWriter(
-        'runs/{}_SAC_{}_{}_{}'.format(datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S"), arguments.env_name,
-                                      arguments.policy, "autotune" if arguments.automatic_entropy_tuning else ""))
-
     # Environment
-    max_episode_steps = 100
-    writer.add_scalar(tag='env/max_env_steps', scalar_value=max_episode_steps)
-
+    # env = NormalizedActions(gym.make(args.env_name))
     env = gym.make(arguments.env_name)
-    env._max_episode_steps = max_episode_steps
-
-    # env = NonStationaryCheetahWindVelEnv(env=env, change_freq=20000, renewal=True, summary_writer=writer)
-    env = ToggleWindVelEnv(env=env, change_freq=20000, renewal=False, summary_writer=writer)
-    # env = StationaryCheetahWindVelEnv(env=env, summary_writer=writer)
-    env._max_episode_steps = max_episode_steps
-
     env.seed(arguments.seed)
     env.action_space.seed(arguments.seed)
 
@@ -83,7 +65,12 @@ def run_agent_and_environment(arguments):
     np.random.seed(arguments.seed)
 
     # Agent
-    agent = SAC(env.observation_space.shape[0], env.action_space, arguments)
+    agent = SACOrig(env.observation_space.shape[0], env.action_space, arguments)
+
+    # Tesnorboard
+    writer = SummaryWriter(
+        'runs/{}_SAC_{}_{}_{}'.format(datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S"), arguments.env_name,
+                                      arguments.policy, "autotune" if arguments.automatic_entropy_tuning else ""))
 
     # Memory
     replay_memory = ReplayMemory(arguments.replay_size, arguments.seed)

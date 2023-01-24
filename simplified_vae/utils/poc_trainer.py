@@ -1,4 +1,5 @@
 import itertools
+from collections import deque
 from typing import Union
 
 import gym
@@ -7,9 +8,11 @@ import torch
 from torch.utils.tensorboard import SummaryWriter
 
 from simplified_vae.config.config import Config
+from simplified_vae.env.toggle_windvel_env import ToggleWindVelEnv
 from simplified_vae.utils.clustering_utils import Clusterer
 from simplified_vae.utils.cpd_utils import CPD
-from simplified_vae.utils.env_utils import collect_stationary_trajectories
+from simplified_vae.utils.env_utils import collect_stationary_trajectories, collect_non_stationary_trajectories, \
+    collect_toggle_trajectories
 from simplified_vae.env.stationary_cheetah_windvel_wrapper import StationaryCheetahWindVelEnv
 from simplified_vae.utils.losses import compute_state_reconstruction_loss, compute_reward_reconstruction_loss, \
     compute_kl_loss
@@ -23,12 +26,15 @@ from src.utils.replay_memory import ReplayMemory
 class POCTrainer:
 
     def __init__(self, config: Config,
-                       env: StationaryCheetahWindVelEnv):
+                       env: Union[StationaryCheetahWindVelEnv, ToggleWindVelEnv],
+                       data_collection_env: Union[StationaryCheetahWindVelEnv, ToggleWindVelEnv]):
 
         self.config: Config = config
         self.logger: SummaryWriter = config.logger
 
-        self.env: StationaryCheetahWindVelEnv = env
+        self.env: Union[StationaryCheetahWindVelEnv, ToggleWindVelEnv] = env
+        self.data_collection_env: StationaryCheetahWindVelEnv = data_collection_env
+
         self.obs_dim: int = env.observation_space.shape[0]
         discrete = isinstance(env.action_space, gym.spaces.Discrete)
         self.action_dim: int = env.action_space.n if discrete else env.action_space.shape[0]
@@ -43,17 +49,14 @@ class POCTrainer:
                            num_inputs=self.obs_dim,
                            action_space=env.action_space) for _ in range(config.agent.agents_num)]
 
-        cpd_num = len(self.config.cpd.window_lengths)
-        self.cpds = [CPD(cpd_config=self.config.cpd,
-                         window_length=self.config.cpd.window_lengths[i]) for i in range(cpd_num)]
+        cpd_num = self.config.cpd.cusum_window_length
+        self.cpd = CPD(config=self.config, window_length=self.config.cpd.cusum_window_length)
 
-        self.clusterer = Clusterer(cluster_num=self.config.cpd.clusters_num, rg=self.rg)
-
-
+        self.clusterer = Clusterer(config=self.config, rg=self.rg)
 
         # Init Buffer
-        self.buffer = Buffer(max_episode_num=config.train_buffer.max_episode_num,
-                             max_episode_len=config.train_buffer.max_episode_len,
+        self.buffer = Buffer(max_episode_num=config.cpd.max_episode_num,
+                             max_episode_len=config.cpd.max_episode_len,
                              obs_dim=self.obs_dim,
                              action_dim=self.action_dim)
 
@@ -62,45 +65,76 @@ class POCTrainer:
 
     def init_clusters(self):
 
-        collect_stationary_trajectories(env=self.env,
+        # Collect episodes from Task_0
+        self.data_collection_env.set_task(task=self.env.tasks[0])
+        collect_stationary_trajectories(env=self.data_collection_env,
                                         buffer=self.buffer,
-                                        episode_num=self.config.train_buffer.max_episode_num,
-                                        episode_len=self.config.train_buffer.max_episode_len,
-                                        env_change_freq=self.config.train_buffer.max_episode_num)
+                                        episode_num=self.config.cpd.max_episode_num // 2,
+                                        episode_len=self.config.cpd.max_episode_len,
+                                        env_change_freq=self.config.cpd.max_episode_num,
+                                        agent=self.agents[0])
 
-        obs_d, actions_d, rewards_d = all_to_device(self.buffer.obs,
-                                                    self.buffer.actions,
-                                                    self.buffer.rewards,
-                                                    device=self.config.device)
+        # collect episode from Task_1
+        self.data_collection_env.set_task(task=self.env.tasks[1])
+        collect_stationary_trajectories(env=self.data_collection_env,
+                                        buffer=self.buffer,
+                                        episode_num=self.config.cpd.max_episode_num // 2,
+                                        episode_len=self.config.cpd.max_episode_len,
+                                        env_change_freq=self.config.cpd.max_episode_num,
+                                        agent=self.agents[1])
 
-        latent_sample, latent_mean, latent_logvar, output_0 = self.model.encoder(obs=obs_d,
-                                                                                 actions=actions_d,
-                                                                                 rewards=rewards_d)
+        obs_0, actions_0, rewards_0, next_obs_0 = self.buffer.sample_section(start_idx=0,
+                                                                             end_idx=self.config.cpd.max_episode_num // 2)
+        obs_1, actions_1, rewards_1, next_obs_1 = self.buffer.sample_section(start_idx=self.config.cpd.max_episode_num // 2,
+                                                                             end_idx=self.config.cpd.max_episode_num)
 
-        # latent_means = self.batched_latent_representation(self.buffer.obs, self.buffer.actions, self.buffer.rewards)
+        obs_0_d, actions_0_d, rewards_0_d, next_obs_0 = all_to_device(obs_0, actions_0, rewards_0, next_obs_0, device=self.config.device)
+        obs_1_d, actions_1_d, rewards_1_d, next_obs_1 = all_to_device(obs_1, actions_1, rewards_1, next_obs_1, device=self.config.device)
 
-        self.clusterer.cluster(latent_means=latent_mean)
+        self.model.eval()
+        with torch.no_grad():
+            latent_sample_0, latent_mean_0, latent_logvar_0, output_0, hidden_0 = self.model.encoder(obs=obs_0_d,
+                                                                                                     actions=actions_0_d,
+                                                                                                     rewards=rewards_0_d)
+
+            latent_sample_1, latent_mean_1, latent_logvar_1, output_1, hidden_1 = self.model.encoder(obs=obs_1_d,
+                                                                                                     actions=actions_1_d,
+                                                                                                     rewards=rewards_1_d)
+
+        latent_mean = torch.cat([latent_mean_0, latent_mean_1], dim=0)
+        latent_mean_h = latent_mean.detach().cpu().numpy()
+
+        all_labels = self.clusterer.init_clusters(latent_mean_h)
+
+        task_num = len(self.env.tasks)
+        per_task_sample_num = self.config.cpd.max_episode_len * self.config.cpd.max_episode_num // task_num
+
+        self.cpd.dists[0].init_transitions(labels=all_labels[:per_task_sample_num])
+        self.cpd.dists[1].init_transitions(labels=all_labels[per_task_sample_num:])
 
     def train_model(self):
 
-        # Memory
-
-        # Training Loop
         total_steps = 0
         updates = 0
+        hidden_state = None
+
+        sum_reward_window = deque(maxlen=self.config.training.sum_reward_window_size)
 
         for i_episode in itertools.count(1):
 
             episode_reward = 0
             episode_steps = 0
             done = False
+
+            self.env.set_task(self.env.tasks[0])
             obs = self.env.reset()
+
             prev_label = None
-            active_agent_idx = 0
+            curr_agent_idx = 0
 
             while not done:
 
-                curr_agent = self.agents[active_agent_idx]
+                curr_agent = self.agents[curr_agent_idx]
 
                 if self.config.agent.start_steps > total_steps:
                     action = self.env.action_space.sample()  # Sample random action
@@ -127,19 +161,32 @@ class POCTrainer:
                         self.logger.add_scalar('entropy_temprature/alpha', alpha, updates)
                         updates += 1
 
-                next_obs = reward, done, _ = self.env.step(action)  # Step
-
-                curr_label, active_agent_idx = self.update_cpd(curr_agent=curr_agent,
-                                                               obs=obs,
-                                                               action=action,
-                                                               reward=reward,
-                                                               prev_label=prev_label,
-                                                               episode_steps=episode_steps)
+                next_obs, reward, done, _ = self.env.step(action)  # Step
 
                 # Ignore the "done" signal if it comes from hitting the time horizon.
                 # (https://github.com/openai/spinningup/blob/master/spinup/algos/sac/sac.py)
                 mask = 1 if episode_steps == self.env._max_episode_steps else float(not done)
                 curr_agent.replay_memory.push(obs, action, reward, next_obs, mask)  # Append transition to memory
+
+                # update CPD estimation
+                hidden_state, curr_label, n_c, g_k = self.update_cpd(obs=obs,
+                                                                     action=action,
+                                                                     reward=reward,
+                                                                     hidden_state=hidden_state,
+                                                                     prev_label=prev_label,
+                                                                     episode_steps=episode_steps,
+                                                                     curr_agent_idx=curr_agent_idx)
+
+                if n_c:  # change has been detected
+                    curr_agent_idx = int(not curr_agent_idx)
+
+
+                else:  # no change, update current transition matrix
+                    self.agents[curr_agent_idx].transition_mat = self.cpd.dists[curr_agent_idx].transition_mat / \
+                                                                 self.cpd.dists[curr_agent_idx].column_sum_vec
+
+                # Update policy if CPD is detected
+                # curr_agent_idx = self.update_policy(n_c, curr_agent_idx, episode_steps=episode_steps)
 
                 obs = next_obs
                 prev_label = curr_label
@@ -147,10 +194,18 @@ class POCTrainer:
                 total_steps += 1
                 episode_reward += reward
 
+                sum_reward_window.append(reward)
+                if total_steps > self.config.training.sum_reward_window_size:
+                    sum_reward = sum([curr for curr in sum_reward_window])
+                    self.logger.add_scalar('reward/train', sum_reward, total_steps)
+
+                    if total_steps % self.config.training.print_train_loss_freq == 0:
+                        print(f'Curr Idx = {total_steps}, Sum Reward = {sum_reward}')
+
             if total_steps > self.config.agent.num_steps:
                 break
 
-            self.logger.add_scalar('reward/train', episode_reward, i_episode)
+            # self.logger.add_scalar('reward/train', episode_reward, i_episode)
             print("Episode: {}, total numsteps: {}, episode steps: {}, reward: {}".format(i_episode, total_steps,
                                                                                           episode_steps,
                                                                                           round(episode_reward, 2)))
@@ -185,11 +240,11 @@ class POCTrainer:
                                                rewards=np.array([reward]))
 
             curr_label = self.clusterer.predict(curr_latent_mean)
-            print(f'curr label = {curr_label}')
+            # print(f'curr label = {curr_label}')
             if episode_steps > 0:
-                n_c, g_k = self.cpds[0].update_transition((prev_label.item(), curr_label.item()))
+                n_c, g_k = self.cpd.update_transition((prev_label.item(), curr_label.item()))
                 if n_c:
-                    self.add_meta_distribution(self.cpds[0])
+                    self.add_meta_distribution(self.cpd)
 
                 # curr_cpd_estim = [cpd.update_transition((prev_label, curr_label)) for cpd in self.cpds]
 
@@ -201,37 +256,47 @@ class POCTrainer:
             episode_steps += 1
 
     def update_cpd(self,
-                   curr_agent: SAC,
                    obs: torch.Tensor,
                    action: torch.Tensor,
                    reward: torch.Tensor,
+                   hidden_state: torch.Tensor,
                    prev_label: np.ndarray,
-                   episode_steps: int):
+                   episode_steps: int,
+                   curr_agent_idx: int):
 
-        # perform add_transition and cusum
-        curr_latent_sample, \
-        curr_latent_mean, \
-        curr_latent_logvar, \
-        curr_output = self.model.encoder(obs=obs,
-                                         actions=action,
-                                         rewards=np.array([reward]))
+        self.model.eval()
+        with torch.no_grad():
+            # perform add_transition and cusum
+            curr_latent_sample, \
+            curr_latent_mean, \
+            curr_latent_logvar, \
+            curr_output, hidden_state = self.model.encoder(obs=obs,
+                                                           actions=action,
+                                                           rewards=np.array([reward]),
+                                                           hidden_state=hidden_state)
 
-        self.clusterer.update_clusters(latent_means=curr_latent_mean)
+        self.clusterer.update_clusters(new_obs=curr_latent_mean)
         curr_label = self.clusterer.predict(curr_latent_mean)
 
-        print(f'curr label = {curr_label}')
+        # print(f'curr label = {curr_label}')
         if episode_steps > 0:
-            n_c, g_k = self.cpds[0].update_transition((prev_label.item(), curr_label.item()))
+            n_c, g_k = self.cpd.update_transition(curr_transition=(prev_label.item(), curr_label.item()),
+                                                     curr_agent_idx=curr_agent_idx)
+        else:
+            n_c, g_k = None, None
 
-            if n_c: # change has been detected
-                pass
+        return hidden_state, curr_label, n_c, g_k
 
-            else: # no change, update current transition matrix
-                prev_matrix = curr_agent.transition_mat
-                curr_matrix = self.cpds[0].dist_0.transition_mat
-                curr_agent.transition_mat = prev_matrix + (curr_matrix - prev_matrix) / (episode_steps + 1)
+    def update_policy(self, n_c, curr_agent_idx: int, episode_steps: int):
 
-        return curr_label
+        if n_c: # change has been detected
+            curr_agent_idx = int(not curr_agent_idx)
+
+        else: # no change, update current transition matrix
+            self.agents[curr_agent_idx].transition_mat = self.cpd.dists[curr_agent_idx].transition_mat / \
+                                                         self.cpd.dists[curr_agent_idx].column_sum_vec
+
+        return curr_agent_idx
 
     def test_iter(self, obs: torch.Tensor,
                         actions: torch.Tensor,

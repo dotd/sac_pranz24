@@ -34,14 +34,22 @@ class RNNVAE(nn.Module):
         self.state_decoder = StateTransitionDecoder(config=config, action_dim=action_dim, obs_dim=obs_dim).to(self.config.device)
         self.reward_decoder = RewardDecoder(config=config, action_dim=action_dim, obs_dim=obs_dim).to(self.config.device)
 
-    def forward(self, obs: torch.Tensor, actions: torch.Tensor, rewards: torch.Tensor, next_obs: torch.Tensor):
+    def forward(self,
+                obs: torch.Tensor,
+                actions: torch.Tensor,
+                rewards: torch.Tensor,
+                next_obs: torch.Tensor,
+                hidden_state: torch.Tensor = None):
 
-        latent_sample, latent_mean, latent_logvar, output = self.encoder(obs=obs, actions=actions, rewards=rewards)
+        latent_sample, latent_mean, latent_logvar, output, hidden_state = self.encoder(obs=obs,
+                                                                                       actions=actions,
+                                                                                       rewards=rewards,
+                                                                                       hidden_state=hidden_state)
 
         next_obs_preds = self.state_decoder(latent_sample, obs, actions)
         rewards_pred = self.reward_decoder(latent_sample, obs, actions, next_obs)
 
-        return next_obs_preds, rewards_pred, latent_mean, latent_logvar
+        return next_obs_preds, rewards_pred, latent_mean, latent_logvar, output, hidden_state
 
 
 class VAE(nn.Module):
@@ -61,9 +69,15 @@ class VAE(nn.Module):
         self.state_decoder = StateTransitionDecoder(config=config, action_dim=action_dim, obs_dim=obs_dim).to(self.config.device)
         self.reward_decoder = RewardDecoder(config=config, action_dim=action_dim, obs_dim=obs_dim).to(self.config.device)
 
-    def forward(self, obs: torch.Tensor, actions: torch.Tensor, rewards: torch.Tensor, next_obs: torch.Tensor):
+    def forward(self,
+                obs: torch.Tensor,
+                actions: torch.Tensor,
+                rewards: torch.Tensor,
+                next_obs: torch.Tensor):
 
-        latent_sample, latent_mean, latent_logvar = self.encoder(obs=obs, actions=actions, rewards=rewards)
+        latent_sample, latent_mean, latent_logvar = self.encoder(obs=obs,
+                                                                 actions=actions,
+                                                                 rewards=rewards)
 
         next_obs_preds = self.state_decoder(latent_sample, obs, actions)
         rewards_pred = self.reward_decoder(latent_sample, obs, actions, next_obs)
