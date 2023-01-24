@@ -1,3 +1,4 @@
+import random
 from typing import Union, List, Optional
 
 import gym
@@ -8,6 +9,7 @@ import torch.nn as nn
 from scipy.stats import randint
 
 from simplified_vae.config.config import Config
+from simplified_vae.env.fixed_toggle_windvel_env import FixedToggleWindVelEnv
 from simplified_vae.env.stationary_cheetah_windvel_wrapper import StationaryCheetahWindVelEnv
 from simplified_vae.env.toggle_windvel_env import ToggleWindVelEnv
 from simplified_vae.models.sac import SAC
@@ -146,6 +148,28 @@ def make_toggle_env(config: Config):
     return env
 
 
+def make_fixed_toggle_env(config: Config):
+
+    # Environment
+    max_episode_steps = 100 # TODO fix
+
+    env = gym.make(config.env_name)
+    env.seed(config.seed)
+    env._max_episode_steps = config.train_buffer.max_episode_len
+
+    env = FixedToggleWindVelEnv(env=env, config=config)
+    env._max_episode_steps = max_episode_steps
+
+    env.seed(config.seed)
+    env.action_space.seed(config.seed)
+
+    torch.manual_seed(config.seed)
+    np.random.seed(config.seed)
+
+    env.set_task(env.tasks[0])
+
+    return env
+
 def collect_stationary_trajectories(env: Union[gym.Env,
                                     StationaryCheetahWindVelEnv],
                                     buffer: Buffer,
@@ -233,3 +257,4 @@ def set_seed(seed: int):
 
     torch.manual_seed(seed)
     np.random.seed(seed)
+    random.seed(seed)

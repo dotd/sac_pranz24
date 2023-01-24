@@ -39,15 +39,13 @@ class ToggleWindVelEnv(Wrapper):
         self.default_target_vel: float = (self.high_target_vel + self.low_target_vel) / 2
         self.default_wind_frc: float = (self.high_wind_frc + self.low_wind_frc) / 2
 
-        self.task = np.asarray([self.default_target_vel, self.default_wind_frc])
-
         self.task_space = spaces.Box(low=np.array ([self.low_target_vel,  self.low_wind_frc], dtype=np.float32),
                                      high=np.array([self.high_target_vel, self.high_wind_frc], dtype=np.float32),
                                      dtype=np.float32, seed=config.seed)
 
         self.tasks: List = [self.task_space.sample(), self.task_space.sample()]
-
         self.task_idx: int = 0
+        self.task = self.tasks[self.task_idx]
 
         self.ep_length: int = 0
         self.cum_rwd: int = 0

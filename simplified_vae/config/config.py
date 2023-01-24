@@ -74,7 +74,7 @@ class BufferConfig(BaseModel):
 
 class TrainBufferConfig(BufferConfig):
 
-    max_episode_len: int = 100000
+    max_episode_len: int = 1000000
     max_episode_num: int = 2
 
 
@@ -108,7 +108,6 @@ class AgentConfig(BaseModel):
 
 class ModelConfig(BaseModel):
 
-    use_rnn_model: bool = False
     type: str = 'RNNVAE'
     checkpoint_path = 'runs/2023-01-02_09-12-57_VAE/model_best.pth.tar'
 
