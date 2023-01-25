@@ -114,11 +114,12 @@ class POCTrainer:
 
     def train_model(self):
 
-        total_steps = 0
+        total_steps = [0,0]
         updates = 0
         hidden_state = None
 
-        sum_reward_window = deque(maxlen=self.config.training.sum_reward_window_size)
+        sum_reward_windows = [deque(maxlen=self.config.training.sum_reward_window_size),
+                              deque(maxlen=self.config.training.sum_reward_window_size)]
 
         for i_episode in itertools.count(1):
 
@@ -136,7 +137,7 @@ class POCTrainer:
 
                 curr_agent = self.agents[curr_agent_idx]
 
-                if self.config.agent.start_steps > total_steps:
+                if self.config.agent.start_steps > total_steps[curr_agent_idx]:
                     action = self.env.action_space.sample()  # Sample random action
                 else:
                     action = curr_agent.select_action(obs)  # Sample action from policy
@@ -154,11 +155,11 @@ class POCTrainer:
                                                              batch_size=self.config.agent.batch_size,
                                                              updates=updates)
 
-                        self.logger.add_scalar('agent_loss/critic_1', critic_1_loss, updates)
-                        self.logger.add_scalar('agent_loss/critic_2', critic_2_loss, updates)
-                        self.logger.add_scalar('agent_loss/policy', policy_loss, updates)
-                        self.logger.add_scalar('agent_loss/entropy_loss', ent_loss, updates)
-                        self.logger.add_scalar('entropy_temprature/alpha', alpha, updates)
+                        self.logger.add_scalar(f'agent_loss_{curr_agent_idx}/critic_1', critic_1_loss, updates)
+                        self.logger.add_scalar(f'agent_loss_{curr_agent_idx}/critic_2', critic_2_loss, updates)
+                        self.logger.add_scalar(f'agent_loss_{curr_agent_idx}/policy', policy_loss, updates)
+                        self.logger.add_scalar(f'agent_loss_{curr_agent_idx}/entropy_loss', ent_loss, updates)
+                        self.logger.add_scalar(f'entropy_temprature_{curr_agent_idx}/alpha', alpha, updates)
                         updates += 1
 
                 next_obs, reward, done, _ = self.env.step(action)  # Step
@@ -179,27 +180,25 @@ class POCTrainer:
 
                 if n_c:  # change has been detected
                     curr_agent_idx = int(not curr_agent_idx)
-
+                    print(f'Change Point Detected at {episode_steps}!!!')
 
                 else:  # no change, update current transition matrix
-                    self.agents[curr_agent_idx].transition_mat = self.cpd.dists[curr_agent_idx].transition_mat / \
-                                                                 self.cpd.dists[curr_agent_idx].column_sum_vec
-
-                # Update policy if CPD is detected
-                # curr_agent_idx = self.update_policy(n_c, curr_agent_idx, episode_steps=episode_steps)
+                    pass
+                    # self.agents[curr_agent_idx].transition_mat = self.cpd.dists[curr_agent_idx].transition_mat / \
+                    #                                              self.cpd.dists[curr_agent_idx].column_sum_vec
 
                 obs = next_obs
                 prev_label = curr_label
                 episode_steps += 1
-                total_steps += 1
+                total_steps[curr_agent_idx] += 1
                 episode_reward += reward
 
-                sum_reward_window.append(reward)
-                if total_steps > self.config.training.sum_reward_window_size:
-                    sum_reward = sum([curr for curr in sum_reward_window])
-                    self.logger.add_scalar('reward/train', sum_reward, total_steps)
+                sum_reward_windows[curr_agent_idx].append(reward)
+                if total_steps[curr_agent_idx] > self.config.training.sum_reward_window_size:
+                    sum_reward = sum([curr for curr in sum_reward_windows[curr_agent_idx]])
+                    self.logger.add_scalar(f'reward_{curr_agent_idx}/train', sum_reward, total_steps[curr_agent_idx])
 
-                    if total_steps % self.config.training.print_train_loss_freq == 0:
+                    if total_steps[curr_agent_idx] % self.config.training.print_train_loss_freq == 0:
                         print(f'Curr Idx = {total_steps}, Sum Reward = {sum_reward}')
 
             if total_steps > self.config.agent.num_steps:

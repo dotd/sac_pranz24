@@ -28,19 +28,28 @@ class VAETrainer:
 
         self.rg = np.random.RandomState(seed=self.config.seed)
 
-        if self.config.model.use_rnn_model:
+        if self.config.model.type == 'RNNVAE':
             self.model: RNNVAE = RNNVAE(config=config,
                                         obs_dim=self.obs_dim,
                                         action_dim=self.action_dim)
-        else:
+
+        elif self.config.model.type == 'VAE':
             self.model: VAE = VAE(config=config,
                                   obs_dim=self.obs_dim,
                                   action_dim=self.action_dim)
+        else:
+            raise NotImplementedError
 
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=config.training.lr)
 
-        self.train_buffer: Buffer = Buffer(config=config.train_buffer, obs_dim=self.obs_dim, action_dim=self.action_dim)
-        self.test_buffer: Buffer = Buffer(config=config.test_buffer, obs_dim=self.obs_dim, action_dim=self.action_dim)
+        self.train_buffer: Buffer = Buffer(max_episode_len=config.train_buffer.max_episode_len,
+                                           max_episode_num=config.train_buffer.max_episode_num,
+                                           obs_dim=self.obs_dim,
+                                           action_dim=self.action_dim)
+        self.test_buffer: Buffer = Buffer(max_episode_len=config.test_buffer.max_episode_len,
+                                          max_episode_num=config.test_buffer.max_episode_num,
+                                          obs_dim=self.obs_dim,
+                                          action_dim=self.action_dim)
         self.min_loss = np.Inf
 
         write_config(config=config, logdir=self.logger.log_dir)
@@ -52,7 +61,7 @@ class VAETrainer:
                                             buffer=self.train_buffer,
                                             episode_num=self.config.train_buffer.max_episode_num,
                                             episode_len=self.config.train_buffer.max_episode_len,
-                                            env_change_freq=self.config.training.env_change_freq)
+                                            env_change_freq=self.config.train_buffer.max_episode_num // 10)
         else:
             collect_non_stationary_trajectories(env=self.env,
                                                 buffer=self.train_buffer,
@@ -138,7 +147,7 @@ class VAETrainer:
         rewards_d = rewards.to(self.config.device)
         next_obs_d = next_obs.to(self.config.device)
 
-        next_obs_preds, rewards_pred, latent_mean, latent_logvar = self.model(obs_d, actions_d, rewards_d, next_obs_d)
+        next_obs_preds, rewards_pred, latent_mean, latent_logvar, _, _ = self.model(obs_d, actions_d, rewards_d, next_obs_d)
 
         state_reconstruction_loss = compute_state_reconstruction_loss(next_obs_preds, next_obs_d)
         reward_reconstruction_loss = compute_reward_reconstruction_loss(rewards_pred, rewards_d)
@@ -172,7 +181,7 @@ class VAETrainer:
             rewards_d = rewards.to(self.config.device)
             next_obs_d = next_obs.to(self.config.device)
 
-            next_obs_preds, rewards_pred, latent_mean, latent_logvar = self.model(obs_d, actions_d, rewards_d, next_obs_d)
+            next_obs_preds, rewards_pred, latent_mean, latent_logvar, _, _ = self.model(obs_d, actions_d, rewards_d, next_obs_d)
 
             state_reconstruction_loss = compute_state_reconstruction_loss(next_obs_preds, next_obs_d)
             reward_reconstruction_loss = compute_reward_reconstruction_loss(rewards_pred, rewards_d)

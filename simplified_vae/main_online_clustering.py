@@ -20,6 +20,8 @@ def run_cusum(curr_transitions, markov_dist_0, markov_dist_1):
 
     n_c, s_k, S_k, g_k, medians_k = 0, [], [], [], []
     sample_len = len(curr_transitions)
+    done = False
+
     for k in range(sample_len):
 
         curr_sample = curr_transitions[k, :]
@@ -36,9 +38,10 @@ def run_cusum(curr_transitions, markov_dist_0, markov_dist_1):
         curr_median = running_median_g_k.update(S_k[-1] - min_S_k)
         medians_k.append(curr_median)
 
-        if running_median_g_k.median > 10:
+        if running_median_g_k.median > 10 and not done:
         # if g_k[-1] > 10:
-            n_c = S_k.index(min(S_k))
+            n_c = k #S_k.index(min(S_k))
+            done = True
             # break
 
     print(f'n_c = {n_c}')

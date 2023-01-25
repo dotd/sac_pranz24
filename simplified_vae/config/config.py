@@ -128,7 +128,7 @@ class CPDConfig(BaseModel):
 
     max_episode_len: int = 100
     max_episode_num: int = 200
-    clusters_queue_size: int = 20000
+    clusters_queue_size: int = 10000
     median_window_size = 20
 
     cusum_window_length: int = 3000

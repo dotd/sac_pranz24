@@ -40,7 +40,7 @@ class CPD:
             n_c, g_k = None, None
 
         if n_c:
-            print("Change Point Detected!!!")
+            # print("Change Point Detected!!!")
             self.window_queue.clear()
 
         return n_c, g_k
@@ -51,6 +51,7 @@ class CPD:
 
         n_c, s_k, S_k, g_k, medians_k = None, [], [], [], []
         next_agent_idx = int(not(curr_agent_idx))
+        done = False
 
         for k in range(len(self.window_queue)):
 
@@ -69,8 +70,9 @@ class CPD:
             medians_k.append(curr_median)
 
             # if g_k[-1] > self.cpd_config.cusum_thresh:
-            if running_median.median > self.cpd_config.cusum_thresh:
-                n_c = S_k.index(min(S_k))
+            if running_median.median > self.cpd_config.cusum_thresh and not done:
+                n_c = k #S_k.index(min(S_k))
+                done = True
                 # break
 
         return n_c, g_k

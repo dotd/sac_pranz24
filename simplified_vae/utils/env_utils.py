@@ -1,3 +1,4 @@
+import random
 from typing import Union, List, Optional
 
 import gym
@@ -256,3 +257,4 @@ def set_seed(seed: int):
 
     torch.manual_seed(seed)
     np.random.seed(seed)
+    random.seed(seed)

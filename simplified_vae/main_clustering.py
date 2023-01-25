@@ -6,7 +6,7 @@ import gym
 from matplotlib import pyplot as plt
 
 from simplified_vae.clustering.cluter_utils import latent_clustering
-from simplified_vae.config.config import Config
+from simplified_vae.config.config import Config, ModelConfig
 from simplified_vae.utils.markov_dist import MarkovDistribution
 from simplified_vae.utils.env_utils import make_stationary_env, collect_stationary_trajectories, set_seed
 from simplified_vae.utils.model_utils import init_model, all_to_device
