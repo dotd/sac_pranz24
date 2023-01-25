@@ -40,7 +40,7 @@ class CPD:
             n_c, g_k = None, None
 
         if n_c:
-            print("Change Point Detected!!!")
+            # print("Change Point Detected!!!")
             self.window_queue.clear()
 
         return n_c, g_k

@@ -36,7 +36,7 @@ def main():
         if g_k[-1] > thresh and not done:
             n_c = k #S_k.index(min(S_k))
             done = True
-            break
+
 
     print(f'n_c = {n_c}')
     plt.figure(), plt.plot(g_k), plt.show(block=True)
