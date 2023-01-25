@@ -6,6 +6,7 @@ import gym
 import numpy as np
 import torch
 from torch.utils.tensorboard import SummaryWriter
+import wandb
 
 from simplified_vae.config.config import Config
 from simplified_vae.env.toggle_windvel_env import ToggleWindVelEnv
@@ -117,6 +118,7 @@ class POCTrainer:
         total_steps = [0,0]
         updates = 0
         hidden_state = None
+        cpd_detect_counter = 0
 
         sum_reward_windows = [deque(maxlen=self.config.training.sum_reward_window_size),
                               deque(maxlen=self.config.training.sum_reward_window_size)]
@@ -160,6 +162,9 @@ class POCTrainer:
                         self.logger.add_scalar(f'agent_loss_{curr_agent_idx}/policy', policy_loss, updates)
                         self.logger.add_scalar(f'agent_loss_{curr_agent_idx}/entropy_loss', ent_loss, updates)
                         self.logger.add_scalar(f'entropy_temprature_{curr_agent_idx}/alpha', alpha, updates)
+                        wandb.log({'agent_loss/critic_1': critic_1_loss, 'agent_loss/critic_2': critic_2_loss,
+                                   'agent_loss/policy': policy_loss, 'agent_loss/entropy_loss': ent_loss,
+                                   'entropy_temprature/alpha': alpha}, step=updates)
                         updates += 1
 
                 next_obs, reward, done, _ = self.env.step(action)  # Step
@@ -180,7 +185,10 @@ class POCTrainer:
 
                 if n_c:  # change has been detected
                     curr_agent_idx = int(not curr_agent_idx)
+                    cpd_detect_counter += 1
                     print(f'Change Point Detected at {episode_steps}!!!')
+                    wandb.log({'detected_cpd_step_v1':episode_steps}, step=cpd_detect_counter)
+                    wandb.log({'detected_cpd_step_v2': episode_steps}, step=episode_steps)
 
                 else:  # no change, update current transition matrix
                     pass
@@ -193,10 +201,14 @@ class POCTrainer:
                 total_steps[curr_agent_idx] += 1
                 episode_reward += reward
 
+                wandb.log({f'steps_agent_{curr_agent_idx}': total_steps[curr_agent_idx]}, step=total_steps[curr_agent_idx])
+                wandb.log({'episode_steps': episode_steps}, step=episode_steps)
+
                 sum_reward_windows[curr_agent_idx].append(reward)
                 if total_steps[curr_agent_idx] > self.config.training.sum_reward_window_size:
                     sum_reward = sum([curr for curr in sum_reward_windows[curr_agent_idx]])
                     self.logger.add_scalar(f'reward_{curr_agent_idx}/train', sum_reward, total_steps[curr_agent_idx])
+                    wandb.log({f'reward_{curr_agent_idx}/train': sum_reward}, step=total_steps[curr_agent_idx])
 
                     if total_steps[curr_agent_idx] % self.config.training.print_train_loss_freq == 0:
                         print(f'Curr Idx = {total_steps}, Sum Reward = {sum_reward}')
