@@ -38,7 +38,7 @@ def run_cusum(curr_transitions, markov_dist_0, markov_dist_1, thresh_val):
             done = True
             #break
 
-    print(f'n_c = {n_c}')
+    # print(f'n_c = {n_c}')
     # plt.figure(), plt.plot(g_k), plt.show(block=True)
     return n_c, g_k
 
@@ -128,7 +128,7 @@ def main():
     varibad_vae_stat_checkpoint_path = '../runs/2023-01-24_09-06-11_VAE/model_best.pth.tar' # VARIBAD with stationary trajectories
 
     config = Config()
-    config.seed = 1
+    config.seed = 10
     rg = set_seed(config.seed)
 
     # Init Env
@@ -233,23 +233,34 @@ def main():
                     all_n_c[model_idx, thresh_idx, episode_idx] = n_c - cpd_idx
 
 
-    markers_list = ['bo', 'g^', 'r*']
-    fig, axs = plt.subplots(3)
-    for model_idx, model in enumerate(model_list):
-        for thresh_idx, curr_thresh_val in enumerate(thresh_values):
-            axs[model_idx].plot(np.repeat(curr_thresh_val, test_episode_num), all_n_c[model_idx,thresh_idx,:], markers_list[model_idx])
-
-    plt.show(block=True)
-
-    for model_idx, model in enumerate(model_list):
-        for thresh_idx, curr_thresh_val in enumerate(thresh_values):
-            plt.plot(np.repeat(curr_thresh_val, test_episode_num), all_n_c[model_idx, thresh_idx, :],
-                     markers_list[model_idx])
-    plt.show(block=True)
+    # markers_list = ['bo', 'g^', 'r*']
+    # fig, axs = plt.subplots(3)
+    # for model_idx, model in enumerate(model_list):
+    #     for thresh_idx, curr_thresh_val in enumerate(thresh_values):
+    #         axs[model_idx].plot(np.repeat(curr_thresh_val, test_episode_num), all_n_c[model_idx,thresh_idx,:], markers_list[model_idx])
+    #
+    # plt.show(block=True)
+    #
+    # for model_idx, model in enumerate(model_list):
+    #     for thresh_idx, curr_thresh_val in enumerate(thresh_values):
+    #         plt.plot(np.repeat(curr_thresh_val, test_episode_num), all_n_c[model_idx, thresh_idx, :],
+    #                  markers_list[model_idx])
+    # plt.show(block=True)
 
     tp_0 = (all_n_c[0,...] >= 0).sum() / np.prod(all_n_c.shape[1:])
     tp_1 = (all_n_c[1,...] >= 0).sum() / np.prod(all_n_c.shape[1:])
     tp_2 = (all_n_c[2,...] >= 0).sum() / np.prod(all_n_c.shape[1:])
+
+    fp_0 = (all_n_c[0,...] <= 0).sum() / np.prod(all_n_c.shape[1:])
+    fp_1 = (all_n_c[1,...] <= 0).sum() / np.prod(all_n_c.shape[1:])
+    fp_2 = (all_n_c[2,...] <= 0).sum() / np.prod(all_n_c.shape[1:])
+
+    print(f'tp_0 = {tp_0}')
+    print(f'tp_1 = {tp_1}')
+    print(f'tp_2 = {tp_2}')
+    print(f'fp_0 = {fp_0}')
+    print(f'fp_1 = {fp_1}')
+    print(f'fp_2 = {fp_2}')
 
     total_0 = (all_n_c[0,...]).mean()
     total_1 = (all_n_c[1,...]).mean()

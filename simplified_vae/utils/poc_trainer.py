@@ -51,7 +51,7 @@ class POCTrainer:
                            action_space=env.action_space) for _ in range(config.agent.agents_num)]
 
         cpd_num = self.config.cpd.cusum_window_length
-        self.cpd = CPD(config=self.config, window_length=self.config.cpd.cusum_window_length)
+        self.cpd = CPD(config=self.config, window_length=int(self.config.cpd.cusum_window_length))
 
         self.clusterer = Clusterer(config=self.config, rg=self.rg)
 

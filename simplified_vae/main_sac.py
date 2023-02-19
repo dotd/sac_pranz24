@@ -56,7 +56,7 @@ def main():
     set_seed(config.seed)
 
     # Init Env
-    env = make_fixed_toggle_env(config=config)
+    env = make_toggle_env(config=config)
     data_collection_env = make_stationary_env(config=config)
 
     # init Trainer
