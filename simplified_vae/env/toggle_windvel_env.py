@@ -31,10 +31,10 @@ class ToggleWindVelEnv(Wrapper):
 
         self._max_episode_steps: int = config.train_buffer.max_episode_len
 
-        self.low_target_vel: float = config.task.low_target_vel
-        self.high_target_vel: float = config.task.high_target_vel
-        self.low_wind_frc: float = config.task.low_wind_frc
-        self.high_wind_frc: float = config.task.high_wind_frc
+        self.low_target_vel: float = config.env.low_target_vel
+        self.high_target_vel: float = config.env.high_target_vel
+        self.low_wind_frc: float = config.env.low_wind_frc
+        self.high_wind_frc: float = config.env.high_wind_frc
 
         self.default_target_vel: float = (self.high_target_vel + self.low_target_vel) / 2
         self.default_wind_frc: float = (self.high_wind_frc + self.low_wind_frc) / 2

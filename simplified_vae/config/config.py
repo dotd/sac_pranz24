@@ -1,6 +1,4 @@
-from typing import List
-
-import numpy as np
+from typing import List, Union
 import pydantic
 import torch
 import datetime
@@ -56,14 +54,6 @@ class TrainingConfig(BaseModel):
     print_train_loss_freq = 50
 
     save_freq: int = 50
-
-
-class TaskConfig(BaseModel):
-
-    low_target_vel: float = 0.
-    high_target_vel: float = 3.
-    low_wind_frc: float = 0.
-    high_wind_frc: float = 20.
 
 
 class BufferConfig(BaseModel):
@@ -138,38 +128,106 @@ class CPDConfig(BaseModel):
     poisson_dist: bool = False
 
 
-class TWRConfig(BaseModel):
+class FixedWindvelEnvConfig(BaseModel):
 
-    obs_shape: int = 10
-    latents_shape: int = 5
-    hidden_size: int = 32
-    n_layers: int = 5
-    init_std: int = - 1
-    loss_type: str = 'KL'
+    env_name: str = 'FixedWindvel'
 
-    n_trajectories: int = 1
-    length: int = 1000
-    change_point: int = 500
+    low_target_vel: float = 0.
+    high_target_vel: float = 3.
+    low_wind_frc: float = 0.
+    high_wind_frc: float = 20.
 
-    t_init: int = 50
-    t_end: int = 1000
-    n_epochs: int = 30
-    batch_size: int = 32
-    epsilon: float = .01 # speed of annealing
-    t_min: int = 10
-    annealing: bool = True
 
-    annealing_coef: float = .01
-    lr: float = 0.001
-    train_eps: float = 1e-7
-    seed: int = 0
+class ToggleWindvelEnvConfig(BaseModel):
 
-    layers: List = [32, 32, 32, 32, 32]
+    env_name: str = 'ToggleWindvel'
+
+    low_target_vel: float = 0.
+    high_target_vel: float = 3.
+    low_wind_frc: float = 0.
+    high_wind_frc: float = 20.
+
+
+class FixedABSEnvConfig(BaseModel):
+
+    """ Constructor.
+     Parameters
+     ----------
+     cp_brake: float
+         Brake pressure coefficient [n/a].
+     r_wheel: float
+         Wheel radius [$m$].
+     j_wheel: float
+         Wheel moment of inertia [$kg m^2$].
+     fn_vehicle: float
+         Normal force (i.e. downward force from car weight) [$N$].
+     vx_vehicle: float
+         Vehicle speed in x direction [$m/s$].
+     lp_filter_1: float
+         Hydraulic low-pass filter coefficient [n/a].
+     lp_filter_2: float
+         Hydraulic low-pass filter coefficient [n/a]
+     tire_b: float
+         Magic-formula tire B coefficient [n/a].
+     tire_c: float
+         Magic-formula tire C coefficient [n/a].
+     tire_d: float
+         Magic-formula tire D coefficient [n/a].
+     tire_e: float
+         Magic-formula tire E coefficient [n/a].
+     dt_sim: float
+         Simulation discretization [s].
+     T_sim: float
+         Simulation time horizon [s].
+     """
+
+    env_name: str = 'FixedABS'
+
+    cp_brake: float = 43.
+    r_wheel: float = 0.3657
+    j_wheel: float = 2.3120
+    fn_vehicle: float = 1e4
+    vx_vehicle: float = 30.
+    lp_filter_1: float = 0.02
+    lp_filter_2: float = 0.066
+    tire_b: float = 12  # 32.609
+    tire_c: float = 2.3  # 1.533
+    tire_d: float = 1.  # 1.3
+    tire_e: float = 0.97  # 0.8
+    dt_sim: float = 1e-3
+    T_sim: float = 1.0
+    max_episode_steps = 500
+
+    # Spaces
+    observation_lims_low: List = [0., 0., 0.]
+    obsevation_lims_high: List = [100., 300., 300.]
+
+    action_lims_low = 0.
+    action_lims_high = 300.
+
+
+class ToggleABSEnvConfig(BaseModel):
+
+    env_name: str = 'ToggleABS'
+
+    cp_brake: float = 43.
+    r_wheel: float = 0.3657
+    j_wheel: float = 2.3120
+    fn_vehicle: float = 1e4
+    vx_vehicle: float = 30.
+    lp_filter_1: float = 0.02
+    lp_filter_2: float = 0.066
+    tire_b: float = 12  # 32.609
+    tire_c: float = 2.3  # 1.533
+    tire_d: float = 1.  # 1.3
+    tire_e: float = 0.97  # 0.8
+    dt_sim: float = 1e-3
+    T_sim: float = 1.0
+    max_episode_steps = 500
 
 
 class Config:
 
-    env_name: str = 'HalfCheetah-v3'
     device: int = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     seed: int = 0
 
@@ -179,8 +237,7 @@ class Config:
     cpd: CPDConfig = CPDConfig()
     model: ModelConfig = ModelConfig()
     training: TrainingConfig = TrainingConfig()
-    task: TaskConfig = TaskConfig()
+    env: Union[FixedWindvelEnvConfig, FixedABSEnvConfig, ToggleABSEnvConfig] = FixedWindvelEnvConfig
     train_buffer: TrainBufferConfig = TrainBufferConfig()
     test_buffer: TestBufferConfig = TestBufferConfig()
 
-    twr: TWRConfig = TWRConfig()

@@ -1,10 +1,14 @@
-from typing import Optional
+from typing import Optional, List
 
 import gym
 import numpy as np
 from gym import spaces
-
+import random
 from simplified_vae.config.config import Config
+
+
+def change_increments(change_freq):
+    return int(np.ceil(np.log(1 - random.random()) / np.log(1 - (1 / change_freq)) - 1))
 
 
 class FixedSingleWheelEnv(gym.Env):
@@ -21,11 +25,22 @@ class FixedSingleWheelEnv(gym.Env):
         super().__init__()
 
         self.config: Config = config
+        self.summary_writer = config.logger
         self._seed: int = config.seed
-        self.task: np.ndarray = np.array([config.env.tire_b,
-                                          config.env.tire_c,
-                                          config.env.tire_d,
-                                          config.env.tire_e])
+
+        self.change_freq: int = int((config.cpd.cusum_window_length + config.cpd.env_window_delta) * config.cpd.freq_multiplier)
+        self.next_change: int = self.change_freq + change_increments(config.cpd.poisson_freq)  # for poisson_dist process only
+        self.counter: int = 0
+        self.poisson_dist: bool = config.cpd.poisson_dist
+
+        self.task_space = spaces.Box(low=np.array(config.env.task_lims_low, dtype=np.float32),
+                                     high=np.array(config.env.task_lims_high, dtype=np.float32),
+                                     dtype=np.float32,
+                                     seed=config.seed)
+
+        self.tasks: List = [self.task_space.sample(), self.task_space.sample()]
+        self.task_idx: int = 0
+        self.task = self.tasks[self.task_idx]
 
         # Simulation parameters
         self.t_sim: float = 0.
@@ -50,6 +65,20 @@ class FixedSingleWheelEnv(gym.Env):
 
         # Simulation initialization
         self.viewer = None
+
+    @property
+    def current_task(self):
+        return self.task
+
+    def get_task(self):
+        return self.task
+
+    def set_task(self, task: np.ndarray):
+
+        if task is None:
+            raise NotImplemented
+
+        self.task = task
 
     def get_initial_state(self):
         """ Get the initial system state for the specified parameters.
@@ -101,6 +130,39 @@ class FixedSingleWheelEnv(gym.Env):
         info: dict
             Dictionary with additional information.
         """
+
+        if self.counter == self.next_change and \
+           self.counter > 0 and \
+           self.poisson_dist:
+
+            jump = self.change_freq + change_increments(self.config.cpd.poisson_freq)
+            if jump == 0:
+                jump += 1
+
+            self.next_change += jump
+            self.task_idx = int(not self.task_idx)
+            self.set_task(task=self.tasks[self.task_idx])
+
+            print(f'CHANGED TO TASK {self.current_task} AT STEP {self.counter}!')
+
+            self.summary_writer.add_scalar(tag='env/tire_b', scalar_value=self.task[0], global_step=self.counter)
+            self.summary_writer.add_scalar(tag='env/tire_c', scalar_value=self.task[1], global_step=self.counter)
+            self.summary_writer.add_scalar(tag='env/tire_d', scalar_value=self.task[2], global_step=self.counter)
+            self.summary_writer.add_scalar(tag='env/tire_e', scalar_value=self.task[3], global_step=self.counter)
+
+        if self.counter % self.change_freq == 0 and \
+           self.counter > 0 and \
+           not self.poisson_dist:
+
+            self.task_idx = int(not self.task_idx)
+            self.set_task(task=self.tasks[self.task_idx])
+            print(f'CHANGED TO TASK {self.current_task} AT STEP {self.counter}!')
+
+            self.summary_writer.add_scalar(tag='env/tire_b', scalar_value=self.task[0], global_step=self.counter)
+            self.summary_writer.add_scalar(tag='env/tire_c', scalar_value=self.task[1], global_step=self.counter)
+            self.summary_writer.add_scalar(tag='env/tire_d', scalar_value=self.task[2], global_step=self.counter)
+            self.summary_writer.add_scalar(tag='env/tire_e', scalar_value=self.task[3], global_step=self.counter)
+
         action = np.atleast_1d(action).astype(np.float32)
 
         if not self.action_space.contains(action):
@@ -122,13 +184,13 @@ class FixedSingleWheelEnv(gym.Env):
         # Check for termination
         done = False
         if self.t_sim > self.T_sim or \
-           np.abs(curr_slip - self.optimal_slip) < 1e-4 or \
-           not self.observation_space.contains(self.curr_state):
-
+                np.abs(curr_slip - self.optimal_slip) < 1e-4 or \
+                not self.observation_space.contains(self.curr_state):
             done = True
 
         infos = dict(task=self.task)
 
+        self.counter += 1
         return self.curr_state, reward, done, infos
 
     def dynamics(self,
@@ -161,7 +223,8 @@ class FixedSingleWheelEnv(gym.Env):
 
         # Wheel dynamics
         m_brake = np.where(omega > 0., pressure_ff * self.config.env.cp_brake, np.zeros_like(omega))
-        omega_dot = (friction * self.config.env.fn_vehicle * self.config.env.r_wheel - m_brake) / self.config.env.j_wheel
+        omega_dot = (
+                                friction * self.config.env.fn_vehicle * self.config.env.r_wheel - m_brake) / self.config.env.j_wheel
 
         state_dot = np.concatenate([omega_dot, pressure_f_dot, pressure_ff_dot], axis=-1)
         return state_dot
@@ -180,7 +243,9 @@ class FixedSingleWheelEnv(gym.Env):
         friction: ndarray
             A (..., 1) numpy array with Frictions.
         """
-        slip = np.clip((self.config.env.vx_vehicle - omega * self.config.env.r_wheel) / np.clip(self.config.env.vx_vehicle, 1., None), 0., 1.)
+        slip = np.clip(
+            (self.config.env.vx_vehicle - omega * self.config.env.r_wheel) / np.clip(self.config.env.vx_vehicle, 1.,
+                                                                                     None), 0., 1.)
         friction = self.slip_friction_curve(slip)
 
         return slip, friction
@@ -236,7 +301,7 @@ class FixedSingleWheelEnv(gym.Env):
     def is_goal_state(self):
         slip, friction = self.get_slip_friction(self.curr_state[0])
         opt_slip, opt_friction = self.get_optimal_slip_friction()
-        
+
         if np.abs(slip - opt_slip) < 1e-4:
             return True
         else:

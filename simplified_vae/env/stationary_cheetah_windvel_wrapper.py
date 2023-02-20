@@ -17,11 +17,11 @@ class StationaryCheetahWindVelEnv(Wrapper):
         self.config: Config = config
         self.action_dim: np.ndarray = self.env.action_space.shape[0]
 
-        self.default_target_vel: float = (config.task.high_target_vel + config.task.low_target_vel) / 2
-        self.default_wind_frc: float = (config.task.high_wind_frc + config.task.low_wind_frc) / 2
+        self.default_target_vel: float = (config.env.high_target_vel + config.env.low_target_vel) / 2
+        self.default_wind_frc: float = (config.env.high_wind_frc + config.env.low_wind_frc) / 2
 
-        self.task_space = spaces.Box(low=np.array ([config.task.low_target_vel,  config.task.low_wind_frc], dtype=np.float32),
-                                     high=np.array([config.task.high_target_vel, config.task.high_wind_frc], dtype=np.float32),
+        self.task_space = spaces.Box(low=np.array ([config.env.low_target_vel, config.env.low_wind_frc], dtype=np.float32),
+                                     high=np.array([config.env.high_target_vel, config.env.high_wind_frc], dtype=np.float32),
                                      dtype=np.float32,
                                      seed=config.seed)
 
