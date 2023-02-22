@@ -5,7 +5,7 @@ import torch.nn as nn
 import os
 import shutil
 
-from simplified_vae.config.config import Config
+from simplified_vae.config.config import BaseConfig
 
 
 def save_checkpoint(checkpoint_dir: str,
@@ -49,7 +49,7 @@ def load_checkpoint(checkpoint_path: str,
     else:
         return model, epoch, loss
 
-def write_config(config: Config, logdir: str):
+def write_config(config: BaseConfig, logdir: str):
 
     with open(os.path.join(logdir, 'train_config.json'), 'w') as outfile:
         json.dump(config.training.json(), outfile)

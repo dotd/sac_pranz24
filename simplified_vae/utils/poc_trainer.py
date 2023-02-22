@@ -8,7 +8,10 @@ import torch
 from torch.utils.tensorboard import SummaryWriter
 import wandb
 
-from simplified_vae.config.config import Config
+from simplified_vae.config.config import BaseConfig
+from simplified_vae.env.fixed_toggle_abs_env import FixedToggleSingleWheelEnv
+from simplified_vae.env.fixed_toggle_windvel_env import FixedToggleWindVelEnv
+from simplified_vae.env.toggle_abs_env import ToggleSingleWheelEnv
 from simplified_vae.env.toggle_windvel_env import ToggleWindVelEnv
 from simplified_vae.utils.clustering_utils import Clusterer
 from simplified_vae.utils.cpd_utils import CPD
@@ -26,14 +29,15 @@ from src.utils.replay_memory import ReplayMemory
 
 class POCTrainer:
 
-    def __init__(self, config: Config,
-                       env: Union[StationaryCheetahWindVelEnv, ToggleWindVelEnv],
-                       data_collection_env: Union[StationaryCheetahWindVelEnv, ToggleWindVelEnv]):
+    def __init__(self, config: BaseConfig,
+                 env: Union[StationaryCheetahWindVelEnv, ToggleWindVelEnv],
+                 data_collection_env: Union[StationaryCheetahWindVelEnv, ToggleWindVelEnv],
+                 logger: SummaryWriter):
 
-        self.config: Config = config
-        self.logger: SummaryWriter = config.logger
+        self.config: BaseConfig = config
+        self.logger: SummaryWriter = logger
 
-        self.env: Union[StationaryCheetahWindVelEnv, ToggleWindVelEnv] = env
+        self.env: Union[ToggleWindVelEnv, FixedToggleWindVelEnv, ToggleSingleWheelEnv, FixedToggleSingleWheelEnv] = env
         self.data_collection_env: StationaryCheetahWindVelEnv = data_collection_env
 
         self.obs_dim: int = env.observation_space.shape[0]

@@ -7,9 +7,9 @@ import gym
 from matplotlib import pyplot as plt
 
 from simplified_vae.clustering.cluter_utils import latent_clustering
-from simplified_vae.config.config import Config, ModelConfig
+from simplified_vae.config.config import BaseConfig, ModelConfig
 from simplified_vae.utils.markov_dist import MarkovDistribution
-from simplified_vae.utils.env_utils import make_stationary_env, collect_stationary_trajectories, set_seed
+from simplified_vae.utils.env_utils import collect_stationary_trajectories, set_seed
 from simplified_vae.utils.model_utils import init_model, all_to_device
 from simplified_vae.utils.vae_storage import Buffer
 
@@ -127,12 +127,12 @@ def main():
     varibad_vae_non_stat_checkpoint_path = '../runs/2023-01-23_15-54-51_VAE/model_best.pth.tar' # VARIBAD with non-stationary trajectories
     varibad_vae_stat_checkpoint_path = '../runs/2023-01-24_09-06-11_VAE/model_best.pth.tar' # VARIBAD with stationary trajectories
 
-    config = Config()
+    config = BaseConfig()
     config.seed = 10
     rg = set_seed(config.seed)
 
     # Init Env
-    env = make_stationary_env(config=config)
+    env = env_factory(config=config)
     obs_dim: int = env.observation_space.shape[0]
     discrete = isinstance(env.action_space, gym.spaces.Discrete)
     action_dim: int = env.action_space.n if discrete else env.action_space.shape[0]

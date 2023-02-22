@@ -4,14 +4,17 @@ import gym
 import numpy as np
 from gym import spaces
 import random
-from simplified_vae.config.config import Config
+
+from torch.utils.tensorboard import SummaryWriter
+
+from simplified_vae.config.config import BaseConfig
 
 
 def change_increments(change_freq):
     return int(np.ceil(np.log(1 - random.random()) / np.log(1 - (1 / change_freq)) - 1))
 
 
-class FixedSingleWheelEnv(gym.Env):
+class FixedToggleSingleWheelEnv(gym.Env):
     """ Simple Model of the Single Wheel system dynamics.
     Model includes the actuator dynamics represented by the double low-pass filter.
     Explicit Euler method is used for integration.
@@ -20,12 +23,14 @@ class FixedSingleWheelEnv(gym.Env):
     """
     metadata = {"render.modes": ["human"]}
 
-    def __init__(self, config: Config):
+    def __init__(self,
+                 config: BaseConfig,
+                 logger: SummaryWriter):
 
         super().__init__()
 
-        self.config: Config = config
-        self.summary_writer = config.logger
+        self.config: BaseConfig = config
+        self.logger = logger
         self._seed: int = config.seed
 
         self.change_freq: int = int((config.cpd.cusum_window_length + config.cpd.env_window_delta) * config.cpd.freq_multiplier)
@@ -168,10 +173,10 @@ class FixedSingleWheelEnv(gym.Env):
 
             print(f'CHANGED TO TASK {self.current_task} AT STEP {self.counter}!')
 
-            self.summary_writer.add_scalar(tag='env/tire_b', scalar_value=self.task[0], global_step=self.counter)
-            self.summary_writer.add_scalar(tag='env/tire_c', scalar_value=self.task[1], global_step=self.counter)
-            self.summary_writer.add_scalar(tag='env/tire_d', scalar_value=self.task[2], global_step=self.counter)
-            self.summary_writer.add_scalar(tag='env/tire_e', scalar_value=self.task[3], global_step=self.counter)
+            self.logger.add_scalar(tag='env/tire_b', scalar_value=self.task[0], global_step=self.counter)
+            self.logger.add_scalar(tag='env/tire_c', scalar_value=self.task[1], global_step=self.counter)
+            self.logger.add_scalar(tag='env/tire_d', scalar_value=self.task[2], global_step=self.counter)
+            self.logger.add_scalar(tag='env/tire_e', scalar_value=self.task[3], global_step=self.counter)
 
         action = np.atleast_1d(action).astype(np.float32)
 
@@ -294,7 +299,7 @@ class FixedSingleWheelEnv(gym.Env):
                mode: str = "human",
                close: bool = False):
 
-        super(FixedSingleWheelEnv, self).render(mode=mode)
+        super(FixedToggleSingleWheelEnv, self).render(mode=mode)
 
     def close(self):
         if self.viewer:

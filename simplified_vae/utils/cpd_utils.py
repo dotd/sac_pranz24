@@ -5,7 +5,7 @@ from collections import deque
 
 import numpy as np
 
-from simplified_vae.config.config import CPDConfig, Config
+from simplified_vae.config.config import CPDConfig, BaseConfig
 from simplified_vae.utils.markov_dist import MarkovDistribution
 from simplified_vae.utils.online_median_filter import RunningMedian
 
@@ -13,10 +13,10 @@ from simplified_vae.utils.online_median_filter import RunningMedian
 class CPD:
 
     def __init__(self,
-                 config: Config,
+                 config: BaseConfig,
                  window_length: int):
 
-        self.config: Config = config
+        self.config: BaseConfig = config
         self.cpd_config: CPDConfig = config.cpd
         self.window_length = window_length
 

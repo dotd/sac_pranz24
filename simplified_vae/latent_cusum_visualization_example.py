@@ -6,9 +6,10 @@ import gym
 from matplotlib import pyplot as plt
 
 from simplified_vae.clustering.cluter_utils import latent_clustering
-from simplified_vae.config.config import Config, ModelConfig
+from simplified_vae.config.config import BaseConfig, StationaryWindvelEnvConfig
+from simplified_vae.env.environment_factory import env_factory
 from simplified_vae.utils.markov_dist import MarkovDistribution
-from simplified_vae.utils.env_utils import make_stationary_env, collect_stationary_trajectories, set_seed
+from simplified_vae.utils.env_utils import collect_stationary_trajectories, set_seed
 from simplified_vae.utils.model_utils import init_model, all_to_device
 from simplified_vae.utils.vae_storage import Buffer
 
@@ -45,19 +46,21 @@ def main():
 
     ## Init config
 
-    # checkpoint_path = 'runs/2023-01-02_09-12-57_VAE/model_best.pth.tar' # Our approach
-    checkpoint_path = 'runs/2023-01-23_15-54-51_VAE/model_best.pth.tar' # VARIBAD with non-stationary trajectories
+    checkpoint_path = 'runs/2023-01-02_09-12-57_VAE/model_best.pth.tar' # Our approach
+    # checkpoint_path = 'runs/2023-01-23_15-54-51_VAE/model_best.pth.tar' # VARIBAD with non-stationary trajectories
     # checkpoint_path = 'runs/2023-01-24_09-06-11_VAE/model_best.pth.tar' # VARIBAD with stationary trajectories
 
-    config = Config()
+    config = BaseConfig(env=StationaryWindvelEnvConfig())  # StationaryWindvelEnvConfig or StationaryABSEnvConfig
     config.model.checkpoint_path = checkpoint_path
     rg = set_seed(config.seed)
 
     # Init Env
-    env = make_stationary_env(config=config)
+    env = env_factory(config=config, logger=None)
+
     obs_dim: int = env.observation_space.shape[0]
     discrete = isinstance(env.action_space, gym.spaces.Discrete)
     action_dim: int = env.action_space.n if discrete else env.action_space.shape[0]
+
     episode_num = 200
     max_episode_len = 100
     clusters_num = 10
@@ -93,7 +96,7 @@ def main():
     with torch.no_grad():
         obs_0, actions_0, rewards_0, next_obs_0 = test_buffer.sample_section(start_idx=0,
                                                                              end_idx=episode_num // 2)
-        obs_1, actions_1, rewards_1, next_obs_1 = test_buffer.sample_section(start_idx=episode_num //2,
+        obs_1, actions_1, rewards_1, next_obs_1 = test_buffer.sample_section(start_idx=episode_num // 2,
                                                                              end_idx=episode_num)
 
         obs_0_d, actions_0_d, rewards_0_d, next_obs_0_d = all_to_device(obs_0, actions_0, rewards_0, next_obs_0, device=config.device)

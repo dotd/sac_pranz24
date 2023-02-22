@@ -5,7 +5,7 @@ import torch
 import torch.nn.functional as F
 from torch.optim import Adam
 
-from simplified_vae.config.config import Config
+from simplified_vae.config.config import BaseConfig
 from simplified_vae.utils.agent_utils import soft_update, hard_update
 from simplified_vae.models.model import GaussianPolicy, QNetwork, DeterministicPolicy
 from src.utils.replay_memory import ReplayMemory
@@ -14,7 +14,7 @@ from src.utils.replay_memory import ReplayMemory
 class SAC(object):
 
     def __init__(self,
-                 config: Config,
+                 config: BaseConfig,
                  num_inputs: int,
                  action_space):
 

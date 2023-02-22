@@ -8,7 +8,7 @@ import torch
 import torch.nn as nn
 from scipy.stats import randint
 
-from simplified_vae.config.config import Config
+from simplified_vae.config.config import BaseConfig
 from simplified_vae.env.fixed_toggle_windvel_env import FixedToggleWindVelEnv
 from simplified_vae.env.stationary_cheetah_windvel_wrapper import StationaryCheetahWindVelEnv
 from simplified_vae.env.toggle_windvel_env import ToggleWindVelEnv
@@ -60,7 +60,7 @@ def sample_stationary_trajectory(env: Union[Env, StationaryCheetahWindVelEnv],
            np.asarray(all_dones)[:, np.newaxis]
 
 
-def sample_non_stationary_trajectory(env: Union[Env, StationaryCheetahWindVelEnv], max_env_steps: object, rg: object) -> object:
+def sample_non_stationary_trajectory(env: Union[Env, StationaryCheetahWindVelEnv], max_env_steps: int, rg: object) -> object:
 
     # initialize env for the beginning of a new rollout
     obs = env.reset()
@@ -104,12 +104,12 @@ def sample_non_stationary_trajectory(env: Union[Env, StationaryCheetahWindVelEnv
            np.asarray(all_dones)[:, np.newaxis]
 
 
-def make_stationary_env(config: Config):
+def make_stationary_env(config: BaseConfig):
 
     # Environment
     max_episode_steps = 100
 
-    env = gym.make(config.env_name)
+    env = gym.make(config.env.name)
     env.seed(config.seed)
     env._max_episode_steps = config.train_buffer.max_episode_len
 
@@ -125,12 +125,12 @@ def make_stationary_env(config: Config):
     return env
 
 
-def make_toggle_env(config: Config):
+def make_toggle_env(config: BaseConfig):
 
     # Environment
     max_episode_steps = 100
 
-    env = gym.make(config.env_name)
+    env = gym.make(config.env.name)
     env.seed(config.seed)
     env._max_episode_steps = config.train_buffer.max_episode_len
 
@@ -148,12 +148,12 @@ def make_toggle_env(config: Config):
     return env
 
 
-def make_fixed_toggle_env(config: Config):
+def make_fixed_toggle_env(config: BaseConfig):
 
     # Environment
     max_episode_steps = 100 # TODO fix
 
-    env = gym.make(config.env_name)
+    env = gym.make(config.env.name)
     env.seed(config.seed)
     env._max_episode_steps = config.train_buffer.max_episode_len
 
@@ -169,6 +169,7 @@ def make_fixed_toggle_env(config: Config):
     env.set_task(env.tasks[0])
 
     return env
+
 
 def collect_stationary_trajectories(env: Union[gym.Env,
                                     StationaryCheetahWindVelEnv],
@@ -220,6 +221,7 @@ def collect_non_stationary_trajectories(env: Union[gym.Env, StationaryCheetahWin
                       next_obs=next_obs,
                       dones=dones)
 
+
 def collect_toggle_trajectories(env: Union[gym.Env, StationaryCheetahWindVelEnv],
                                 buffer: Buffer,
                                 episode_num: int,
@@ -250,7 +252,6 @@ def collect_toggle_trajectories(env: Union[gym.Env, StationaryCheetahWindVelEnv]
                       rewards=rewards,
                       next_obs=next_obs,
                       dones=dones)
-
 
 
 def set_seed(seed: int):

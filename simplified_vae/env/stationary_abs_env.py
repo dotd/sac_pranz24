@@ -3,11 +3,12 @@ from typing import Optional
 import gym
 import numpy as np
 from gym import spaces
+from torch.utils.tensorboard import SummaryWriter
 
-from simplified_vae.config.config import Config
+from simplified_vae.config.config import BaseConfig
 
 
-class FixedSingleWheelEnv(gym.Env):
+class StationarySingleWheelEnv(gym.Env):
     """ Simple Model of the Single Wheel system dynamics.
     Model includes the actuator dynamics represented by the double low-pass filter.
     Explicit Euler method is used for integration.
@@ -16,11 +17,14 @@ class FixedSingleWheelEnv(gym.Env):
     """
     metadata = {"render.modes": ["human"]}
 
-    def __init__(self, config: Config):
+    def __init__(self,
+                 config: BaseConfig,
+                 logger: SummaryWriter):
 
         super().__init__()
 
-        self.config: Config = config
+        self.config: BaseConfig = config
+        self.logger = logger
         self._seed: int = config.seed
         self.task: np.ndarray = np.array([config.env.tire_b,
                                           config.env.tire_c,
@@ -219,7 +223,7 @@ class FixedSingleWheelEnv(gym.Env):
                mode: str = "human",
                close: bool = False):
 
-        super(FixedSingleWheelEnv, self).render(mode=mode)
+        super(StationarySingleWheelEnv, self).render(mode=mode)
 
     def close(self):
         if self.viewer:
@@ -231,12 +235,15 @@ class FixedSingleWheelEnv(gym.Env):
         return np.array([slip_grid, friction_grid])
 
     def set_task(self, task: np.ndarray):
-        self.task = np.asarray(task)
+        if task is None:
+            self.task = self.task_space.sample()
+        else:
+            self.task = task
 
     def is_goal_state(self):
         slip, friction = self.get_slip_friction(self.curr_state[0])
         opt_slip, opt_friction = self.get_optimal_slip_friction()
-        
+
         if np.abs(slip - opt_slip) < 1e-4:
             return True
         else:

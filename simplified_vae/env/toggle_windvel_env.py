@@ -5,8 +5,9 @@ from typing import List
 import gym
 from gym import Wrapper
 from gym import spaces
+from torch.utils.tensorboard import SummaryWriter
 
-from simplified_vae.config.config import Config
+from simplified_vae.config.config import BaseConfig
 
 
 def change_increments(change_freq):
@@ -17,12 +18,13 @@ class ToggleWindVelEnv(Wrapper):
 
     def __init__(self,
                  env: gym.Env,
-                 config: Config):
+                 config: BaseConfig,
+                 logger: SummaryWriter):
 
         super(ToggleWindVelEnv, self).__init__(env)
 
-        self.config: Config = config
-        self.summary_writer = config.logger
+        self.config: BaseConfig = config
+        self.logger: SummaryWriter = logger
 
         self.change_freq: int = int((config.cpd.cusum_window_length + config.cpd.env_window_delta) * config.cpd.freq_multiplier)
         self.next_change: int = self.change_freq + change_increments(config.cpd.poisson_freq)  # for poisson_dist process only
@@ -84,8 +86,8 @@ class ToggleWindVelEnv(Wrapper):
 
             print(f'CHANGED TO TASK {self.current_task} AT STEP {self.counter}!')
 
-            self.summary_writer.add_scalar(tag='env/target_velocity', scalar_value=self.task[0], global_step=self.counter)
-            self.summary_writer.add_scalar(tag='env/wind_friction', scalar_value=self.task[1], global_step=self.counter)
+            self.logger.add_scalar(tag='env/target_velocity', scalar_value=self.task[0], global_step=self.counter)
+            self.logger.add_scalar(tag='env/wind_friction', scalar_value=self.task[1], global_step=self.counter)
 
         if self.counter % self.change_freq == 0 and \
            self.counter > 0 and \
@@ -95,8 +97,8 @@ class ToggleWindVelEnv(Wrapper):
             self.set_task(task=self.tasks[self.task_idx])
             print(f'CHANGED TO TASK {self.current_task} AT STEP {self.counter}!')
 
-            self.summary_writer.add_scalar(tag='env/target_velocity', scalar_value=self.task[0], global_step=self.counter)
-            self.summary_writer.add_scalar(tag='env/wind_friction', scalar_value=self.task[1], global_step=self.counter)
+            self.logger.add_scalar(tag='env/target_velocity', scalar_value=self.task[0], global_step=self.counter)
+            self.logger.add_scalar(tag='env/wind_friction', scalar_value=self.task[1], global_step=self.counter)
 
         curr_target_vel = self.task[0]
         curr_wind_frec = self.task[1]

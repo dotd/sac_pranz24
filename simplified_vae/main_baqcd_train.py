@@ -1,12 +1,17 @@
+import inspect
+from datetime import datetime
 import os
 import wandb
 import sys
 
-# from simplified_vae.config.config import Config
-# from simplified_vae.utils.env_utils import make_stationary_env, set_seed, make_toggle_env, make_fixed_toggle_env
-# from simplified_vae.utils.poc_trainer import POCTrainer
-
 # Add script directory to sys.path.
+from torch.utils.tensorboard import SummaryWriter
+from simplified_vae.config.config import BaseConfig, ToggleWindvelEnvConfig, StationaryWindvelEnvConfig
+from simplified_vae.env.environment_factory import env_factory
+from simplified_vae.utils.env_utils import set_seed
+from simplified_vae.utils.poc_trainer import POCTrainer
+
+
 def GetScriptDirectory():
     if hasattr(GetScriptDirectory, "dir"):
         return GetScriptDirectory.dir
@@ -34,38 +39,30 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__),'..','..'
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__),'..')))
 sys.path.append(os.path.join(GetScriptDirectory(), "lib"))
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__),'/simplified_vae/')))
-# print(os.getcwd())
 
-from simplified_vae.config.config import Config
-from simplified_vae.utils.env_utils import make_stationary_env, set_seed, make_toggle_env, make_fixed_toggle_env
-from simplified_vae.utils.poc_trainer import POCTrainer
 
 def main():
 
-    ## Init config
-    config = Config()
+    config = BaseConfig(env=ToggleWindvelEnvConfig())
+    stationary_config = BaseConfig(env=StationaryWindvelEnvConfig())
 
-    wandb.init(
-        # set the wandb project where this run will be logged
-        project="cusum_exps",
-
-        # track hyperparameters and run metadata
-        config=config.__dict__
-    )
-
+    logger = SummaryWriter(f'runs/BAQCD_{config.env.name}_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}')
     set_seed(config.seed)
 
+    wandb.init(project="cusum_exps",
+               config=config.__dict__)
+
     # Init Env
-    env = make_toggle_env(config=config)
-    data_collection_env = make_stationary_env(config=config)
+    env = env_factory(config=config, logger=logger)
+    data_collection_env = env_factory(config=stationary_config, logger=logger)
 
     # init Trainer
     poc_trainer = POCTrainer(config=config,
                              env=env,
-                             data_collection_env=data_collection_env)
+                             data_collection_env=data_collection_env,
+                             logger=logger)
 
     poc_trainer.init_clusters()
-
     poc_trainer.train_model()
     wandb.finish()
 

@@ -3,12 +3,12 @@ from typing import List
 import numpy
 import torch
 
-from simplified_vae.config.config import Config
+from simplified_vae.config.config import BaseConfig
 from simplified_vae.models.vae import RNNVAE, VAE
 from simplified_vae.utils.logging_utils import load_checkpoint
 
 
-def init_model(config: Config,
+def init_model(config: BaseConfig,
                obs_dim: int,
                action_dim: int):
 

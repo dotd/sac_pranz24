@@ -1,4 +1,6 @@
 import random
+
+import gym
 from gym import Wrapper
 import numpy as np
 # import wandb
@@ -14,11 +16,15 @@ def change_increments(change_freq):
 
 class NonStationaryCheetahWindVelEnv(Wrapper):
 
-    def __init__(self, env, change_freq, poisson_dist, summary_writer: SummaryWriter):
+    def __init__(self,
+                 env: gym.Env,
+                 change_freq: int,
+                 poisson_dist: bool,
+                 logger: SummaryWriter):
 
         super(NonStationaryCheetahWindVelEnv, self).__init__(env)
 
-        self.summary_writer = summary_writer
+        self.logger = logger
 
         self.change_freq = change_freq
         self.next_change = change_increments(self.change_freq)  # for poisson_dist process only
@@ -71,15 +77,15 @@ class NonStationaryCheetahWindVelEnv(Wrapper):
             self.set_task(task=None)
             print("CHANGED TO TASK {} AT STEP {}!".format(self.current_task, self.counter))
 
-            self.summary_writer.add_scalar(tag='env/target_velocity', scalar_value=self.task[0], global_step=self.counter)
-            self.summary_writer.add_scalar(tag='env/wind_friction', scalar_value=self.task[1], global_step=self.counter)
+            self.logger.add_scalar(tag='env/target_velocity', scalar_value=self.task[0], global_step=self.counter)
+            self.logger.add_scalar(tag='env/wind_friction', scalar_value=self.task[1], global_step=self.counter)
 
         if self.counter % self.change_freq == 0 and self.counter > 0 and not self.poisson_dist:
             self.set_task(task=None)
             print("CHANGED TO TASK {} AT STEP {}!".format(self.current_task, self.counter))
 
-            self.summary_writer.add_scalar(tag='env/target_velocity', scalar_value=self.task[0], global_step=self.counter)
-            self.summary_writer.add_scalar(tag='env/wind_friction', scalar_value=self.task[1], global_step=self.counter)
+            self.logger.add_scalar(tag='env/target_velocity', scalar_value=self.task[0], global_step=self.counter)
+            self.logger.add_scalar(tag='env/wind_friction', scalar_value=self.task[1], global_step=self.counter)
 
         curr_target_vel = self.task[0]
         curr_wind_frec = self.task[1]

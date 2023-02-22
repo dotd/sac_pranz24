@@ -5,16 +5,20 @@ import random
 # Same environment as in LILAC for Half cheetah Windvel
 from torch.utils.tensorboard import SummaryWriter
 
-from simplified_vae.config.config import Config
+from simplified_vae.config.config import BaseConfig
 
 
 class StationaryCheetahWindVelEnv(Wrapper):
 
-    def __init__(self, env: gym.Env, config: Config):
+    def __init__(self,
+                 env: gym.Env,
+                 config: BaseConfig,
+                 logger: SummaryWriter):
 
         super(StationaryCheetahWindVelEnv, self).__init__(env)
 
-        self.config: Config = config
+        self.config: BaseConfig = config
+        self.logger = logger
         self.action_dim: np.ndarray = self.env.action_space.shape[0]
 
         self.default_target_vel: float = (config.env.high_target_vel + config.env.low_target_vel) / 2

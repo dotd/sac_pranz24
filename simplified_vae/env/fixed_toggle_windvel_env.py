@@ -1,20 +1,22 @@
 import numpy as np
 import gym
 from gym import Wrapper
+from torch.utils.tensorboard import SummaryWriter
 
-from simplified_vae.config.config import Config
+from simplified_vae.config.config import BaseConfig
 
 
 class FixedToggleWindVelEnv(Wrapper):
 
     def __init__(self,
                  env: gym.Env,
-                 config: Config):
+                 config: BaseConfig,
+                 logger: SummaryWriter):
 
         super(FixedToggleWindVelEnv, self).__init__(env)
 
-        self.config: Config = config
-        self.summary_writer = config.logger
+        self.config: BaseConfig = config
+        self.logger: SummaryWriter = logger
 
         self.action_dim: int = self.env.action_space.shape[0]
         self.counter: int = 0
@@ -88,8 +90,8 @@ class FixedToggleWindVelEnv(Wrapper):
 
             print(f'CHANGED TO TASK {self.current_task} AT STEP {self.counter}!')
 
-            self.summary_writer.add_scalar(tag='env/target_velocity', scalar_value=self.task[0], global_step=self.counter)
-            self.summary_writer.add_scalar(tag='env/wind_friction', scalar_value=self.task[1], global_step=self.counter)
+            self.logger.add_scalar(tag='env/target_velocity', scalar_value=self.task[0], global_step=self.counter)
+            self.logger.add_scalar(tag='env/wind_friction', scalar_value=self.task[1], global_step=self.counter)
 
         curr_target_vel = self.task[0]
         curr_wind_frec = self.task[1]

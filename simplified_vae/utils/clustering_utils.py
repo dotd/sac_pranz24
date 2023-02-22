@@ -6,16 +6,16 @@ import torch
 from sklearn.cluster import KMeans
 from sklearn.cluster import MiniBatchKMeans
 
-from simplified_vae.config.config import Config
+from simplified_vae.config.config import BaseConfig
 
 
 class Clusterer:
 
     def __init__(self,
-                 config: Config,
+                 config: BaseConfig,
                  rg: np.random.RandomState):
 
-        self.config: Config = config
+        self.config: BaseConfig = config
         self.clusters_num = config.cpd.clusters_num
         self.rg = rg
         self.clusters: Union[KMeans, MiniBatchKMeans] = None

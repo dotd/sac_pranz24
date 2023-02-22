@@ -1,14 +1,14 @@
 from typing import List, Union
 import pydantic
 import torch
-import datetime
-
-from torch.utils.tensorboard import SummaryWriter
 
 
-class BaseModel(pydantic.BaseModel, extra=pydantic.Extra.forbid):
+class BaseModel(pydantic.BaseModel):
+
+    class Config:
+        arbitrary_types_allowed = True
+        extra = pydantic.Extra.forbid
     """Disallow extra arguments to init"""
-    pass
 
 
 class EncoderConfig(BaseModel):
@@ -37,14 +37,14 @@ class TaskDecoderConfig(BaseModel):
     layers = [64, 32]
 
 
-class TrainingConfig(BaseModel):
+class VAETrainingConfig(BaseModel):
 
     lr: float = 0.001
     batch_size: int = 32
     state_reconstruction_loss_weight: float = 1.0
     reward_reconstruction_loss_weight: float = 1.0
     kl_loss_weight: float = 0.1
-    pretrain_iter = 100000
+    vae_train_iter = 100000
 
     use_kl_posterior_loss: bool = False
     use_stationary_trajectories: bool = False
@@ -61,6 +61,15 @@ class BufferConfig(BaseModel):
     max_episode_len: int
     max_episode_num: int
 
+
+class VAETrainBufferConfig(BufferConfig):
+    max_episode_len: int = 100
+    max_episode_num: int = 5000
+
+
+class VAETestBufferConfig(BufferConfig):
+    max_episode_len: int = 100
+    max_episode_num: int = 50
 
 class TrainBufferConfig(BufferConfig):
 
@@ -127,20 +136,15 @@ class CPDConfig(BaseModel):
     freq_multiplier = 1
     poisson_dist: bool = False
 
+class EnvConfig(BaseModel):
+    name: str = 'HalfCheetah-v2'
+    max_episode_steps = 100
 
-class FixedWindvelEnvConfig(BaseModel):
+class StationaryWindvelEnvConfig(EnvConfig):
 
-    env_name: str = 'FixedWindvel'
+    name: str = 'HalfCheetah-v2'
 
-    low_target_vel: float = 0.
-    high_target_vel: float = 3.
-    low_wind_frc: float = 0.
-    high_wind_frc: float = 20.
-
-
-class ToggleWindvelEnvConfig(BaseModel):
-
-    env_name: str = 'ToggleWindvel'
+    max_episode_steps = 100
 
     low_target_vel: float = 0.
     high_target_vel: float = 3.
@@ -148,7 +152,31 @@ class ToggleWindvelEnvConfig(BaseModel):
     high_wind_frc: float = 20.
 
 
-class FixedABSEnvConfig(BaseModel):
+class ToggleWindvelEnvConfig(EnvConfig):
+
+    name: str = 'HalfCheetah-v2'
+
+    max_episode_steps = 1000000
+
+    low_target_vel: float = 0.
+    high_target_vel: float = 3.
+    low_wind_frc: float = 0.
+    high_wind_frc: float = 20.
+
+
+class FixedToggleWindvelEnvConfig(EnvConfig):
+
+    name: str = 'HalfCheetah-v2'
+
+    max_episode_steps = 1000000
+
+    low_target_vel: float = 0.
+    high_target_vel: float = 3.
+    low_wind_frc: float = 0.
+    high_wind_frc: float = 20.
+
+
+class StationaryABSEnvConfig(EnvConfig):
 
     """ Constructor.
      Parameters
@@ -181,7 +209,7 @@ class FixedABSEnvConfig(BaseModel):
          Simulation time horizon [s].
      """
 
-    env_name: str = 'FixedABS'
+    name: str = 'FixedABS'
 
     cp_brake: float = 43.
     r_wheel: float = 0.3657
@@ -206,9 +234,9 @@ class FixedABSEnvConfig(BaseModel):
     action_lims_high = 300.
 
 
-class ToggleABSEnvConfig(BaseModel):
+class ToggleABSEnvConfig(EnvConfig):
 
-    env_name: str = 'ToggleABS'
+    name: str = 'ToggleABS'
 
     cp_brake: float = 43.
     r_wheel: float = 0.3657
@@ -226,18 +254,38 @@ class ToggleABSEnvConfig(BaseModel):
     max_episode_steps = 500
 
 
-class Config:
+class FixedToggleABSEnvConfig(EnvConfig):
 
-    device: int = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    name: str = 'ToggleABS'
+
+    cp_brake: float = 43.
+    r_wheel: float = 0.3657
+    j_wheel: float = 2.3120
+    fn_vehicle: float = 1e4
+    vx_vehicle: float = 30.
+    lp_filter_1: float = 0.02
+    lp_filter_2: float = 0.066
+    tire_b: float = 12  # 32.609
+    tire_c: float = 2.3  # 1.533
+    tire_d: float = 1.  # 1.3
+    tire_e: float = 0.97  # 0.8
+    dt_sim: float = 1e-3
+    T_sim: float = 1.0
+    max_episode_steps = 500
+
+
+class BaseConfig(BaseModel):
+
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     seed: int = 0
-
-    logger = SummaryWriter(f'runs/{datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}_VAE')
 
     agent: AgentConfig = AgentConfig()
     cpd: CPDConfig = CPDConfig()
     model: ModelConfig = ModelConfig()
-    training: TrainingConfig = TrainingConfig()
-    env: Union[FixedWindvelEnvConfig, FixedABSEnvConfig, ToggleABSEnvConfig] = FixedWindvelEnvConfig
+    training: VAETrainingConfig = VAETrainingConfig()
+    env: EnvConfig
     train_buffer: TrainBufferConfig = TrainBufferConfig()
     test_buffer: TestBufferConfig = TestBufferConfig()
+    vae_train_buffer: VAETrainBufferConfig = VAETrainBufferConfig()
+    vae_test_buffer: VAETestBufferConfig = VAETestBufferConfig()
 

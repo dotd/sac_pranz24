@@ -7,7 +7,7 @@ import torch.nn as nn
 from simplified_vae.models.decoder import StateTransitionDecoder, RewardDecoder
 from simplified_vae.models.encoder import RNNEncoder, Encoder
 
-from simplified_vae.config.config import Config
+from simplified_vae.config.config import BaseConfig
 
 
 class RNNVAE(nn.Module):
@@ -19,9 +19,9 @@ class RNNVAE(nn.Module):
     - can update the VAE (encoder+decoder)
     """
 
-    def __init__(self, config: Config,
-                       obs_dim: int = None,
-                       action_dim: int = None):
+    def __init__(self, config: BaseConfig,
+                 obs_dim: int = None,
+                 action_dim: int = None):
 
         # initialise the encoder
         super().__init__()
@@ -54,9 +54,9 @@ class RNNVAE(nn.Module):
 
 class VAE(nn.Module):
 
-    def __init__(self, config: Config,
-                       obs_dim: int = None,
-                       action_dim: int = None):
+    def __init__(self, config: BaseConfig,
+                 obs_dim: int = None,
+                 action_dim: int = None):
 
         # initialise the encoder
         super().__init__()

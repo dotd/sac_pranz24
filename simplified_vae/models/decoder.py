@@ -2,13 +2,13 @@ import torch
 import torch.nn as nn
 from torch.nn import functional as F
 
-from simplified_vae.config.config import Config
+from simplified_vae.config.config import BaseConfig
 
 
 class StateTransitionDecoder(nn.Module):
 
     def __init__(self,
-                 config: Config,
+                 config: BaseConfig,
                  action_dim: int,
                  obs_dim: int):
 
@@ -48,7 +48,7 @@ class StateTransitionDecoder(nn.Module):
 
 class RewardDecoder(nn.Module):
     def __init__(self,
-                 config: Config,
+                 config: BaseConfig,
                  action_dim: int,
                  obs_dim: int):
 
@@ -90,7 +90,7 @@ class RewardDecoder(nn.Module):
 
 class TaskDecoder(nn.Module):
     def __init__(self,
-                 config: Config):
+                 config: BaseConfig):
 
         super(TaskDecoder, self).__init__()
 

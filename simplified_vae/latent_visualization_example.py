@@ -1,12 +1,12 @@
-from matplotlib import pyplot as plt
-
 import gym
 import torch
-import numpy as np
 
-from simplified_vae.config.config import Config
-from simplified_vae.utils.env_utils import make_stationary_env, collect_stationary_trajectories
-from simplified_vae.models.vae import VAE, RNNVAE
+from matplotlib import pyplot as plt
+
+from simplified_vae.config.config import BaseConfig, StationaryWindvelEnvConfig
+from simplified_vae.env.environment_factory import env_factory
+from simplified_vae.utils.env_utils import collect_stationary_trajectories, set_seed
+from simplified_vae.models.vae import RNNVAE
 from simplified_vae.utils.logging_utils import load_checkpoint
 from simplified_vae.utils.vae_storage import Buffer
 
@@ -14,16 +14,16 @@ from simplified_vae.utils.vae_storage import Buffer
 def main():
 
     ## Init config
-    config = Config()
-    torch.manual_seed(config.seed)
-    np.random.seed(config.seed)
+    config = BaseConfig(env=StationaryWindvelEnvConfig())  # StationaryWindvelEnvConfig or StationaryABSEnvConfig
+    set_seed(seed=config.seed)
 
     # Init Env
-    env = make_stationary_env(config=config)
+    env = env_factory(config=config, logger=None)
     obs_dim: int = env.observation_space.shape[0]
     discrete = isinstance(env.action_space, gym.spaces.Discrete)
     action_dim: int = env.action_space.n if discrete else env.action_space.shape[0]
-    trajectories_num = 120
+    max_episode_num = 120
+    max_episode_len = 100
 
     # Init model
     model: RNNVAE = RNNVAE(config=config,
@@ -37,15 +37,18 @@ def main():
     model, epoch, loss = load_checkpoint(checkpoint_path=checkpoint_path, model=model, optimizer=None)
 
     # Init Buffer
-    test_buffer = Buffer(config=config.train_buffer, obs_dim=obs_dim, action_dim=action_dim)
+    test_buffer = Buffer(max_episode_len=max_episode_len,
+                         max_episode_num=max_episode_num * 2,
+                         obs_dim=obs_dim,
+                         action_dim=action_dim)
 
     # Collect episodes from Task_0
     env.set_task(task=None)
     task_0 = env.get_task()
     collect_stationary_trajectories(env=env,
                                     buffer=test_buffer,
-                                    episode_num=trajectories_num,
-                                    episode_len=config.train_buffer.max_episode_len,
+                                    episode_num=max_episode_num,
+                                    episode_len=max_episode_len,
                                     env_change_freq=1)
 
     # collect episode from Task_1
@@ -54,28 +57,28 @@ def main():
 
     collect_stationary_trajectories(env=env,
                                     buffer=test_buffer,
-                                    episode_num=trajectories_num,
-                                    episode_len=config.train_buffer.max_episode_len,
+                                    episode_num=max_episode_num,
+                                    episode_len=max_episode_len,
                                     env_change_freq=1)
 
     # Get obs encodings
     model.eval()
     with torch.no_grad():
 
-        obs_0, actions_0, rewards_0, next_obs_0 = test_buffer.sample_section(start_idx=0, end_idx=trajectories_num)
-        obs_1, actions_1, rewards_1, next_obs_1 = test_buffer.sample_section(start_idx=trajectories_num, end_idx=trajectories_num*2)
+        obs_0, actions_0, rewards_0, next_obs_0 = test_buffer.sample_section(start_idx=0, end_idx=max_episode_num)
+        obs_1, actions_1, rewards_1, next_obs_1 = test_buffer.sample_section(start_idx=max_episode_num, end_idx=max_episode_num*2)
 
         # non-stationary trajectory
-        obs_2      = torch.cat([obs_0[:, :config.train_buffer.max_episode_len // 2, :], obs_1[:, :config.train_buffer.max_episode_len // 2, :]], dim=1)
-        actions_2  = torch.cat([actions_0[:, :config.train_buffer.max_episode_len // 2, :], actions_1[:, :config.train_buffer.max_episode_len // 2, :]], dim=1)
-        rewards_2  = torch.cat([rewards_0[:, :config.train_buffer.max_episode_len // 2, :], rewards_1[:, :config.train_buffer.max_episode_len // 2, :]], dim=1)
-        next_obs_2 = torch.cat([next_obs_0[:, :config.train_buffer.max_episode_len // 2, :], next_obs_1[:, :config.train_buffer.max_episode_len // 2, :]], dim=1)
+        obs_2      = torch.cat([obs_0[:, :max_episode_len // 2, :], obs_1[:, :max_episode_len // 2, :]], dim=1)
+        actions_2  = torch.cat([actions_0[:, :max_episode_len // 2, :], actions_1[:, :max_episode_len // 2, :]], dim=1)
+        rewards_2  = torch.cat([rewards_0[:, :max_episode_len // 2, :], rewards_1[:, :max_episode_len // 2, :]], dim=1)
+        next_obs_2 = torch.cat([next_obs_0[:, :max_episode_len // 2, :], next_obs_1[:, :max_episode_len // 2, :]], dim=1)
 
         # Reverse trajectory
-        obs_3      = torch.cat([obs_0[:, config.train_buffer.max_episode_len // 2:, :], obs_0[:, :config.train_buffer.max_episode_len // 2, :]], dim=1)
-        actions_3  = torch.cat([actions_0[:, config.train_buffer.max_episode_len // 2:, :], actions_0[:, :config.train_buffer.max_episode_len // 2, :]], dim=1)
-        rewards_3  = torch.cat([rewards_0[:, config.train_buffer.max_episode_len // 2:, :], rewards_0[:, :config.train_buffer.max_episode_len // 2, :]], dim=1)
-        next_obs_3 = torch.cat([next_obs_0[:, config.train_buffer.max_episode_len // 2:, :], next_obs_0[:, :config.train_buffer.max_episode_len // 2, :]], dim=1)
+        obs_3      = torch.cat([obs_0[:, max_episode_len // 2:, :], obs_0[:, :max_episode_len // 2, :]], dim=1)
+        actions_3  = torch.cat([actions_0[:, max_episode_len // 2:, :], actions_0[:, :max_episode_len // 2, :]], dim=1)
+        rewards_3  = torch.cat([rewards_0[:, max_episode_len // 2:, :], rewards_0[:, :max_episode_len // 2, :]], dim=1)
+        next_obs_3 = torch.cat([next_obs_0[:, max_episode_len // 2:, :], next_obs_0[:, :max_episode_len // 2, :]], dim=1)
 
         obs_0_d = obs_0.to(config.device)
         obs_1_d = obs_1.to(config.device)
@@ -97,10 +100,10 @@ def main():
         next_obs_2_d = next_obs_2.to(config.device)
         next_obs_3_d = next_obs_3.to(config.device)
 
-        latent_sample_0, latent_mean_0, latent_logvar_0, output_0 = model.encoder(obs=obs_0_d, actions=actions_0_d, rewards=rewards_0_d)
-        latent_sample_1, latent_mean_1, latent_logvar_1, output_1 = model.encoder(obs=obs_1_d, actions=actions_1_d, rewards=rewards_1_d)
-        latent_sample_2, latent_mean_2, latent_logvar_2, output_2 = model.encoder(obs=obs_2_d, actions=actions_2_d, rewards=rewards_2_d)
-        latent_sample_3, latent_mean_3, latent_logvar_3, output_3 = model.encoder(obs=obs_3_d, actions=actions_3_d, rewards=rewards_3_d)
+        latent_sample_0, latent_mean_0, latent_logvar_0, output_0, _ = model.encoder(obs=obs_0_d, actions=actions_0_d, rewards=rewards_0_d)
+        latent_sample_1, latent_mean_1, latent_logvar_1, output_1, _ = model.encoder(obs=obs_1_d, actions=actions_1_d, rewards=rewards_1_d)
+        latent_sample_2, latent_mean_2, latent_logvar_2, output_2, _ = model.encoder(obs=obs_2_d, actions=actions_2_d, rewards=rewards_2_d)
+        latent_sample_3, latent_mean_3, latent_logvar_3, output_3, _ = model.encoder(obs=obs_3_d, actions=actions_3_d, rewards=rewards_3_d)
 
     latent_mean_0 = latent_mean_0.cpu().numpy()
     latent_mean_1 = latent_mean_1.cpu().numpy()
@@ -178,8 +181,6 @@ def main():
     plt.plot(c_2, color='blue')
     plt.plot(c_3, color='purple')
     plt.show(block=True)
-
-
 
 
 if __name__ == '__main__':

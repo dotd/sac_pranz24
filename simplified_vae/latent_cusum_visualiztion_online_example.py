@@ -6,13 +6,15 @@ import gym
 from matplotlib import pyplot as plt
 
 from simplified_vae.clustering.cluter_utils import latent_clustering
-from simplified_vae.config.config import Config
+from simplified_vae.config.config import BaseConfig, StationaryWindvelEnvConfig
+from simplified_vae.env.environment_factory import env_factory
 from simplified_vae.utils.markov_dist import MarkovDistribution
-from simplified_vae.utils.env_utils import make_stationary_env, collect_stationary_trajectories, set_seed, \
+from simplified_vae.utils.env_utils import collect_stationary_trajectories, set_seed, \
     sample_stationary_trajectory
 from simplified_vae.utils.model_utils import init_model, all_to_device
 from simplified_vae.utils.online_median_filter import RunningMedian
 from simplified_vae.utils.vae_storage import Buffer
+
 
 def run_cusum(curr_transitions, markov_dist_0, markov_dist_1):
 
@@ -280,14 +282,15 @@ def process_stationary_trajectory(env,
 def main():
 
     ## Init config
-    config = Config()
+    config = BaseConfig(env=StationaryWindvelEnvConfig()) # StationaryWindvelEnvConfig or StationaryABSEnvConfig)
     rg = set_seed(config.seed)
 
     # Init Env
-    env = make_stationary_env(config=config)
+    env = env_factory(config=config, logger=None)
     obs_dim: int = env.observation_space.shape[0]
     discrete = isinstance(env.action_space, gym.spaces.Discrete)
     action_dim: int = env.action_space.n if discrete else env.action_space.shape[0]
+
     episode_num = 200
     max_episode_len = 100
     clusters_num = 10

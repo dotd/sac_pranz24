@@ -4,20 +4,20 @@ import torch
 import torch.nn as nn
 from torch.nn import functional as F
 
-from simplified_vae.config.config import EncoderConfig, Config
+from simplified_vae.config.config import EncoderConfig, BaseConfig
 
 
 class Encoder(nn.Module):
 
     def __init__(self,
-                 config: Config,
+                 config: BaseConfig,
                  state_dim: int = None,
                  action_dim: int = None,
                  reward_dim: int = 1):
 
         super(Encoder, self).__init__()
 
-        self.config: Config = config
+        self.config: BaseConfig = config
         self.encoder_config: EncoderConfig = config.model.encoder
         self.state_dim: int = state_dim
         self.action_dim: int = action_dim
@@ -78,14 +78,14 @@ class Encoder(nn.Module):
 class RNNEncoder(nn.Module):
 
     def __init__(self,
-                config: Config,
-                state_dim: int = None,
-                action_dim: int = None,
-                reward_dim: int = 1):
+                 config: BaseConfig,
+                 state_dim: int = None,
+                 action_dim: int = None,
+                 reward_dim: int = 1):
 
         super(RNNEncoder, self).__init__()
 
-        self.config: Config = config
+        self.config: BaseConfig = config
         self.encoder_config: EncoderConfig = config.model.encoder
         self.state_dim: int = state_dim
         self.action_dim: int = action_dim

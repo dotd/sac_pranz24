@@ -1,9 +1,12 @@
+from typing import Union
+
 import gym
 import numpy as np
 import torch
 from torch.utils.tensorboard import SummaryWriter
 
-from simplified_vae.config.config import Config
+from simplified_vae.config.config import BaseConfig
+from simplified_vae.env.stationary_abs_env import StationarySingleWheelEnv
 from simplified_vae.utils.env_utils import collect_stationary_trajectories, collect_non_stationary_trajectories
 from simplified_vae.env.stationary_cheetah_windvel_wrapper import StationaryCheetahWindVelEnv
 from simplified_vae.utils.losses import compute_state_reconstruction_loss, compute_reward_reconstruction_loss, \
@@ -15,13 +18,15 @@ from simplified_vae.utils.logging_utils import save_checkpoint, write_config
 
 class VAETrainer:
 
-    def __init__(self, config: Config,
-                       env: StationaryCheetahWindVelEnv):
+    def __init__(self,
+                 config: BaseConfig,
+                 env: StationaryCheetahWindVelEnv,
+                 logger: SummaryWriter):
 
-        self.config: Config = config
-        self.logger: SummaryWriter = config.logger
+        self.config: BaseConfig = config
+        self.logger: SummaryWriter = logger
 
-        self.env: StationaryCheetahWindVelEnv = env
+        self.env: Union[StationaryCheetahWindVelEnv, StationarySingleWheelEnv] = env
         self.obs_dim: int = env.observation_space.shape[0]
         discrete = isinstance(env.action_space, gym.spaces.Discrete)
         self.action_dim: int = env.action_space.n if discrete else env.action_space.shape[0]
@@ -42,12 +47,13 @@ class VAETrainer:
 
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=config.training.lr)
 
-        self.train_buffer: Buffer = Buffer(max_episode_len=config.train_buffer.max_episode_len,
-                                           max_episode_num=config.train_buffer.max_episode_num,
+        self.train_buffer: Buffer = Buffer(max_episode_len=config.vae_train_buffer.max_episode_len,
+                                           max_episode_num=config.vae_train_buffer.max_episode_num,
                                            obs_dim=self.obs_dim,
                                            action_dim=self.action_dim)
-        self.test_buffer: Buffer = Buffer(max_episode_len=config.test_buffer.max_episode_len,
-                                          max_episode_num=config.test_buffer.max_episode_num,
+
+        self.test_buffer: Buffer = Buffer(max_episode_len=config.vae_test_buffer.max_episode_len,
+                                          max_episode_num=config.vae_test_buffer.max_episode_num,
                                           obs_dim=self.obs_dim,
                                           action_dim=self.action_dim)
         self.min_loss = np.Inf
@@ -59,17 +65,17 @@ class VAETrainer:
         if self.config.training.use_stationary_trajectories:
             collect_stationary_trajectories(env=self.env,
                                             buffer=self.train_buffer,
-                                            episode_num=self.config.train_buffer.max_episode_num,
-                                            episode_len=self.config.train_buffer.max_episode_len,
+                                            episode_num=self.config.vae_train_buffer.max_episode_num,
+                                            episode_len=self.config.vae_train_buffer.max_episode_len,
                                             env_change_freq=self.config.train_buffer.max_episode_num // 10)
         else:
             collect_non_stationary_trajectories(env=self.env,
                                                 buffer=self.train_buffer,
-                                                episode_num=self.config.train_buffer.max_episode_num,
-                                                episode_len=self.config.train_buffer.max_episode_len,
+                                                episode_num=self.config.vae_train_buffer.max_episode_num,
+                                                episode_len=self.config.vae_train_buffer.max_episode_len,
                                                 rg=self.rg)
 
-        for iter_idx in range(self.config.training.pretrain_iter):
+        for iter_idx in range(self.config.training.vae_train_iter):
 
             obs, actions, rewards, next_obs = self.train_buffer.sample_batch(batch_size=self.config.training.batch_size)
             state_reconstruction_loss, \
@@ -110,14 +116,14 @@ class VAETrainer:
 
                     collect_stationary_trajectories(env=self.env,
                                                     buffer=self.test_buffer,
-                                                    episode_num=self.config.test_buffer.max_episode_num,
-                                                    episode_len=self.config.test_buffer.max_episode_len,
+                                                    episode_num=self.config.vae_test_buffer.max_episode_num,
+                                                    episode_len=self.config.vae_test_buffer.max_episode_len,
                                                     env_change_freq=1)
                 else:
                     collect_non_stationary_trajectories(env=self.env,
                                                         buffer=self.test_buffer,
-                                                        episode_num=self.config.test_buffer.max_episode_num,
-                                                        episode_len=self.config.test_buffer.max_episode_len,
+                                                        episode_num=self.config.vae_test_buffer.max_episode_num,
+                                                        episode_len=self.config.vae_test_buffer.max_episode_len,
                                                         rg=self.rg)
 
                 obs, actions, rewards, next_obs = self.test_buffer.sample_batch(batch_size=self.config.test_buffer.max_episode_num)
