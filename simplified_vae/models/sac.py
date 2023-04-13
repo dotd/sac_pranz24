@@ -1,45 +1,61 @@
 import os
+
+import numpy as np
 import torch
 import torch.nn.functional as F
 from torch.optim import Adam
-from src.utils.utils import soft_update, hard_update
-from src.algos.model import GaussianPolicy, QNetwork, DeterministicPolicy
+
+from simplified_vae.config.config import BaseConfig
+from simplified_vae.utils.agent_utils import soft_update, hard_update
+from simplified_vae.models.model import GaussianPolicy, QNetwork, DeterministicPolicy
+from src.utils.replay_memory import ReplayMemory
 
 
 class SAC(object):
-    def __init__(self, num_inputs, action_space, args):
 
-        self.gamma = args.gamma
-        self.tau = args.tau
-        self.alpha = args.alpha
+    def __init__(self,
+                 config: BaseConfig,
+                 num_inputs: int,
+                 action_space):
 
-        self.policy_type = args.policy
-        self.target_update_interval = args.target_update_interval
-        self.automatic_entropy_tuning = args.automatic_entropy_tuning
+        self.config = config
+        self.gamma = config.agent.gamma
+        self.tau = config.agent.tau
+        self.alpha = config.agent.alpha
 
-        self.device = torch.device("cuda" if args.cuda else "cpu")
+        self.policy_type = config.agent.policy_type
+        self.target_update_interval = config.agent.target_update_interval
+        self.automatic_entropy_tuning = config.agent.automatic_entropy_tuning
 
-        self.critic = QNetwork(num_inputs, action_space.shape[0], args.hidden_size).to(device=self.device)
-        self.critic_optim = Adam(self.critic.parameters(), lr=args.lr)
+        self.device = config.device
 
-        self.critic_target = QNetwork(num_inputs, action_space.shape[0], args.hidden_size).to(self.device)
+        self.critic = QNetwork(num_inputs, action_space.shape[0], config.agent.hidden_size).to(device=self.device)
+        self.critic_optim = Adam(self.critic.parameters(), lr=config.agent.lr)
+
+        self.critic_target = QNetwork(num_inputs, action_space.shape[0], config.agent.hidden_size).to(self.device)
         hard_update(self.critic_target, self.critic)
 
+        self.replay_memory = ReplayMemory(config.agent.replay_size, config.seed)
+
+        self.transition_mat: np.ndarray = np.zeros((self.config.cpd.clusters_num,
+                                                    self.config.cpd.clusters_num))
         if self.policy_type == "Gaussian":
             # Target Entropy = −dim(A) (e.g. , -6 for HalfCheetah-v2) as given in the paper
             if self.automatic_entropy_tuning is True:
                 self.target_entropy = -torch.prod(torch.Tensor(action_space.shape).to(self.device)).item()
                 self.log_alpha = torch.zeros(1, requires_grad=True, device=self.device)
-                self.alpha_optim = Adam([self.log_alpha], lr=args.lr)
+                self.alpha_optim = Adam([self.log_alpha], lr=config.agent.lr)
 
-            self.policy = GaussianPolicy(num_inputs, action_space.shape[0], args.hidden_size, action_space).to(self.device)
-            self.policy_optim = Adam(self.policy.parameters(), lr=args.lr)
+            self.policy = GaussianPolicy(num_inputs,
+                                         action_space.shape[0],
+                                         config.agent.hidden_size, action_space).to(self.device)
+            self.policy_optim = Adam(self.policy.parameters(), lr=config.agent.lr)
 
         else:
             self.alpha = 0
             self.automatic_entropy_tuning = False
-            self.policy = DeterministicPolicy(num_inputs, action_space.shape[0], args.hidden_size, action_space).to(self.device)
-            self.policy_optim = Adam(self.policy.parameters(), lr=args.lr)
+            self.policy = DeterministicPolicy(num_inputs, action_space.shape[0], config.agent.hidden_size, action_space).to(self.device)
+            self.policy_optim = Adam(self.policy.parameters(), lr=config.agent.lr)
 
     def select_action(self, state, evaluate=False):
         state = torch.FloatTensor(state).to(self.device).unsqueeze(0)
