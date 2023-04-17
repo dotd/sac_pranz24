@@ -152,6 +152,30 @@ class StationaryWindvelEnvConfig(EnvConfig):
     high_wind_frc: float = 20.
 
 
+class StationaryHopperWindvelEnvConfig(EnvConfig):
+
+    name: str = 'Hopper-v2'
+
+    max_episode_steps = 100
+
+    low_target_vel: float = 0.
+    high_target_vel: float = 3.
+    low_wind_frc: float = 0.
+    high_wind_frc: float = 20.
+
+
+class ToggleHopperWindvelEnvConfig(EnvConfig):
+
+    name: str = 'Hopper-v2'
+
+    max_episode_steps = 1000000
+
+    low_target_vel: float = 0.
+    high_target_vel: float = 3.
+    low_wind_frc: float = 0.
+    high_wind_frc: float = 20.
+
+
 class ToggleWindvelEnvConfig(EnvConfig):
 
     name: str = 'HalfCheetah-v2'

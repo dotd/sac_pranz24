@@ -11,12 +11,14 @@ from simplified_vae.config.config import BaseConfig, \
     FixedToggleWindvelEnvConfig, \
     StationaryABSEnvConfig, \
     ToggleABSEnvConfig, \
-    FixedToggleABSEnvConfig
+    FixedToggleABSEnvConfig, StationaryHopperWindvelEnvConfig, ToggleHopperWindvelEnvConfig
 from simplified_vae.env.stationary_abs_env import StationarySingleWheelEnv
 from simplified_vae.env.fixed_toggle_abs_env import FixedToggleSingleWheelEnv
 from simplified_vae.env.fixed_toggle_windvel_env import FixedToggleWindVelEnv
 from simplified_vae.env.stationary_cheetah_windvel_wrapper import StationaryCheetahWindVelEnv
+from simplified_vae.env.stationary_hopper_windvel import StationaryHopperWindVelEnv
 from simplified_vae.env.toggle_abs_env import ToggleSingleWheelEnv
+from simplified_vae.env.toggle_hopper_windvel_env import ToggleHopperWindVelEnv
 from simplified_vae.env.toggle_windvel_env import ToggleWindVelEnv
 
 
@@ -54,6 +56,20 @@ def env_factory(config: BaseConfig, logger: Optional[SummaryWriter]):
     elif isinstance(config.env, FixedToggleABSEnvConfig):
         env = FixedToggleSingleWheelEnv(config=config, logger=logger)
         env._max_episode_steps = config.env.max_episode_steps
+
+    elif isinstance(config.env, StationaryHopperWindvelEnvConfig):
+
+        env = gym.make('Hopper-v2')
+        env.seed(config.seed)
+        env._max_episode_steps = config.env.max_episode_steps
+        env = StationaryHopperWindVelEnv(env=env, config=config, logger=logger)
+
+    elif isinstance(config.env, ToggleHopperWindvelEnvConfig):
+
+        env = gym.make('Hopper-v2')
+        env.seed(config.seed)
+        env._max_episode_steps = config.env.max_episode_steps
+        env = ToggleHopperWindVelEnv(env=env, config=config, logger=logger)
 
     else:
         raise NotImplementedError

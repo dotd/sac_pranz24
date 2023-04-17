@@ -1,3 +1,4 @@
+
 import numpy as np
 import gym
 from gym import Wrapper, spaces
@@ -8,14 +9,14 @@ from torch.utils.tensorboard import SummaryWriter
 from simplified_vae.config.config import BaseConfig
 
 
-class StationaryCheetahWindVelEnv(Wrapper):
+class StationaryHopperWindVelEnv(Wrapper):
 
     def __init__(self,
                  env: gym.Env,
                  config: BaseConfig,
                  logger: SummaryWriter):
 
-        super(StationaryCheetahWindVelEnv, self).__init__(env)
+        super(StationaryHopperWindVelEnv, self).__init__(env)
 
         self.config: BaseConfig = config
         self.logger = logger

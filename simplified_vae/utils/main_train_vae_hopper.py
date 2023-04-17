@@ -7,14 +7,14 @@ from simplified_vae.utils.vae_trainer import VAETrainer
 from simplified_vae.env.environment_factory import env_factory
 from simplified_vae.config.config import BaseConfig, \
     StationaryWindvelEnvConfig, \
-    StationaryABSEnvConfig
+    StationaryABSEnvConfig, StationaryHopperWindvelEnvConfig
 
 
 def main():
-    config = BaseConfig(env=StationaryWindvelEnvConfig())  # StationaryWindvelEnvConfig or StationaryABSEnvConfig
+    config = BaseConfig(env=StationaryHopperWindvelEnvConfig())  # StationaryHopperWindvelEnvConfig, StationaryWindvelEnvConfig or StationaryABSEnvConfig
     set_seed(seed=config.seed)
 
-    logger = SummaryWriter(f'runs/VAE_{config.env.name}_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}')
+    logger = SummaryWriter(f'runs/VAE_Hopper{config.env.name}_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}')
 
     env = env_factory(config=config, logger=logger)
 
