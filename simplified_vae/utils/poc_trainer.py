@@ -9,15 +9,16 @@ from torch.utils.tensorboard import SummaryWriter
 import wandb
 
 from simplified_vae.config.config import BaseConfig
-from simplified_vae.env.fixed_toggle_abs_env import FixedToggleSingleWheelEnv
-from simplified_vae.env.fixed_toggle_windvel_env import FixedToggleWindVelEnv
-from simplified_vae.env.toggle_abs_env import ToggleSingleWheelEnv
-from simplified_vae.env.toggle_windvel_env import ToggleWindVelEnv
+from simplified_vae.env.fixed_toggle_abs_env import FixedToggleABSEnv
+from simplified_vae.env.fixed_toggle_cheetah_windvel_wrapper import FixedToggleCheetahWindVelWrapper
+from simplified_vae.env.stationary_abs_env import StationaryABSEnv
+from simplified_vae.env.toggle_abs_env import ToggleABSEnv
+from simplified_vae.env.toggle_cheetah_windvel_wrapper import ToggleCheetahWindVelWrapper
 from simplified_vae.utils.clustering_utils import Clusterer
 from simplified_vae.utils.cpd_utils import CPD
 from simplified_vae.utils.env_utils import collect_stationary_trajectories, collect_non_stationary_trajectories, \
     collect_toggle_trajectories
-from simplified_vae.env.stationary_cheetah_windvel_wrapper import StationaryCheetahWindVelEnv
+from simplified_vae.env.stationary_cheetah_windvel_wrapper import StationaryCheetahWindVelWrapper
 from simplified_vae.utils.losses import compute_state_reconstruction_loss, compute_reward_reconstruction_loss, \
     compute_kl_loss
 from simplified_vae.utils.model_utils import init_model, all_to_device
@@ -30,15 +31,15 @@ from src.utils.replay_memory import ReplayMemory
 class POCTrainer:
 
     def __init__(self, config: BaseConfig,
-                 env: Union[StationaryCheetahWindVelEnv, ToggleWindVelEnv],
-                 data_collection_env: Union[StationaryCheetahWindVelEnv, ToggleWindVelEnv],
+                 env: Union[StationaryCheetahWindVelWrapper, ToggleCheetahWindVelWrapper],
+                 data_collection_env: Union[StationaryCheetahWindVelWrapper, ToggleCheetahWindVelWrapper],
                  logger: SummaryWriter):
 
         self.config: BaseConfig = config
         self.logger: SummaryWriter = logger
 
-        self.env: Union[ToggleWindVelEnv, FixedToggleWindVelEnv, ToggleSingleWheelEnv, FixedToggleSingleWheelEnv] = env
-        self.data_collection_env: StationaryCheetahWindVelEnv = data_collection_env
+        self.env: Union[ToggleCheetahWindVelWrapper, FixedToggleCheetahWindVelWrapper, ToggleABSEnv, FixedToggleABSEnv] = env
+        self.data_collection_env: Union[StationaryCheetahWindVelWrapper, StationaryABSEnv] = data_collection_env
 
         self.obs_dim: int = env.observation_space.shape[0]
         discrete = isinstance(env.action_space, gym.spaces.Discrete)
@@ -54,7 +55,6 @@ class POCTrainer:
                            num_inputs=self.obs_dim,
                            action_space=env.action_space) for _ in range(config.agent.agents_num)]
 
-        cpd_num = self.config.cpd.cusum_window_length
         self.cpd = CPD(config=self.config, window_length=int(self.config.cpd.cusum_window_length))
 
         self.clusterer = Clusterer(config=self.config, rg=self.rg)
@@ -173,6 +173,9 @@ class POCTrainer:
 
                 next_obs, reward, done, _ = self.env.step(action)  # Step
 
+                if done:
+                    a = 1
+
                 # Ignore the "done" signal if it comes from hitting the time horizon.
                 # (https://github.com/openai/spinningup/blob/master/spinup/algos/sac/sac.py)
                 mask = 1 if episode_steps == self.env._max_episode_steps else float(not done)
@@ -217,7 +220,7 @@ class POCTrainer:
                     if total_steps[curr_agent_idx] % self.config.training.print_train_loss_freq == 0:
                         print(f'Curr Idx = {total_steps}, Sum Reward = {sum_reward}')
 
-            if total_steps > self.config.agent.num_steps:
+            if total_steps[curr_agent_idx] > self.config.agent.num_steps:
                 break
 
             # self.logger.add_scalar('reward/train', episode_reward, i_episode)
@@ -293,7 +296,6 @@ class POCTrainer:
         self.clusterer.update_clusters(new_obs=curr_latent_mean)
         curr_label = self.clusterer.predict(curr_latent_mean)
 
-        # print(f'curr label = {curr_label}')
         if episode_steps > 0:
             n_c, g_k = self.cpd.update_transition(curr_transition=(prev_label.item(), curr_label.item()),
                                                      curr_agent_idx=curr_agent_idx)

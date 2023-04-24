@@ -9,14 +9,14 @@ import torch.nn as nn
 from scipy.stats import randint
 
 from simplified_vae.config.config import BaseConfig
-from simplified_vae.env.fixed_toggle_windvel_env import FixedToggleWindVelEnv
-from simplified_vae.env.stationary_cheetah_windvel_wrapper import StationaryCheetahWindVelEnv
-from simplified_vae.env.toggle_windvel_env import ToggleWindVelEnv
+from simplified_vae.env.fixed_toggle_cheetah_windvel_wrapper import FixedToggleCheetahWindVelWrapper
+from simplified_vae.env.stationary_cheetah_windvel_wrapper import StationaryCheetahWindVelWrapper
+from simplified_vae.env.toggle_cheetah_windvel_wrapper import ToggleCheetahWindVelWrapper
 from simplified_vae.models.sac import SAC
 from simplified_vae.utils.vae_storage import Buffer
 
 
-def sample_stationary_trajectory(env: Union[Env, StationaryCheetahWindVelEnv],
+def sample_stationary_trajectory(env: Union[Env, StationaryCheetahWindVelWrapper],
                                  max_env_steps: int,
                                  agent: Optional[SAC] = None):
 
@@ -60,7 +60,7 @@ def sample_stationary_trajectory(env: Union[Env, StationaryCheetahWindVelEnv],
            np.asarray(all_dones)[:, np.newaxis]
 
 
-def sample_non_stationary_trajectory(env: Union[Env, StationaryCheetahWindVelEnv], max_env_steps: int, rg: object) -> object:
+def sample_non_stationary_trajectory(env: Union[Env, StationaryCheetahWindVelWrapper], max_env_steps: int, rg: object) -> object:
 
     # initialize env for the beginning of a new rollout
     obs = env.reset()
@@ -71,6 +71,7 @@ def sample_non_stationary_trajectory(env: Union[Env, StationaryCheetahWindVelEnv
     # init vars
     all_obs, all_actions, all_rewards, all_next_obs, all_dones = [], [], [], [], []
     steps = 0
+
     while True:
 
         # use the most recent ob to decide what to do
@@ -113,7 +114,7 @@ def make_stationary_env(config: BaseConfig):
     env.seed(config.seed)
     env._max_episode_steps = config.train_buffer.max_episode_len
 
-    env = StationaryCheetahWindVelEnv(env=env, config=config)
+    env = StationaryCheetahWindVelWrapper(env=env, config=config)
     env._max_episode_steps = max_episode_steps
 
     env.seed(config.seed)
@@ -134,7 +135,7 @@ def make_toggle_env(config: BaseConfig):
     env.seed(config.seed)
     env._max_episode_steps = config.train_buffer.max_episode_len
 
-    env = ToggleWindVelEnv(env=env, config=config)
+    env = ToggleCheetahWindVelWrapper(env=env, config=config)
     env._max_episode_steps = max_episode_steps
 
     env.seed(config.seed)
@@ -157,7 +158,7 @@ def make_fixed_toggle_env(config: BaseConfig):
     env.seed(config.seed)
     env._max_episode_steps = config.train_buffer.max_episode_len
 
-    env = FixedToggleWindVelEnv(env=env, config=config)
+    env = FixedToggleCheetahWindVelWrapper(env=env, config=config)
     env._max_episode_steps = max_episode_steps
 
     env.seed(config.seed)
@@ -172,7 +173,7 @@ def make_fixed_toggle_env(config: BaseConfig):
 
 
 def collect_stationary_trajectories(env: Union[gym.Env,
-                                    StationaryCheetahWindVelEnv],
+                                               StationaryCheetahWindVelWrapper],
                                     buffer: Buffer,
                                     episode_num: int,
                                     episode_len: int,
@@ -200,7 +201,7 @@ def collect_stationary_trajectories(env: Union[gym.Env,
                       dones=dones)
 
 
-def collect_non_stationary_trajectories(env: Union[gym.Env, StationaryCheetahWindVelEnv],
+def collect_non_stationary_trajectories(env: Union[gym.Env, StationaryCheetahWindVelWrapper],
                                         buffer: Buffer,
                                         episode_num: int,
                                         episode_len: int,
@@ -222,7 +223,7 @@ def collect_non_stationary_trajectories(env: Union[gym.Env, StationaryCheetahWin
                       dones=dones)
 
 
-def collect_toggle_trajectories(env: Union[gym.Env, StationaryCheetahWindVelEnv],
+def collect_toggle_trajectories(env: Union[gym.Env, StationaryCheetahWindVelWrapper],
                                 buffer: Buffer,
                                 episode_num: int,
                                 episode_len: int,

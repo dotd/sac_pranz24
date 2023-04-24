@@ -7,7 +7,7 @@ from matplotlib import pyplot as plt
 
 from simplified_vae.clustering.cluter_utils import latent_clustering
 from simplified_vae.config.config import BaseConfig, ModelConfig
-from simplified_vae.config.envs_config import StationaryCheetahWindvelEnvConfig, StationaryABSEnvConfig
+from simplified_vae.config.envs_config import StationaryHopperWindvelEnvConfig
 from simplified_vae.env.environment_factory import env_factory
 from simplified_vae.utils.markov_dist import MarkovDistribution
 from simplified_vae.utils.env_utils import collect_stationary_trajectories, set_seed
@@ -45,21 +45,8 @@ def run_cusum(curr_transitions, markov_dist_0, markov_dist_1):
 
 def main():
 
-    ## Init config
-
-    # checkpoint_path = 'runs/2023-01-02_09-12-57_VAE/model_best.pth.tar' # Our approach
-    # checkpoint_path = 'runs/VAE_FixedABS_2023-03-05_13-45-13/model_best.pth.tar' # Our approach
-    # checkpoint_path = 'runs/2023-01-23_15-54-51_VAE/model_best.pth.tar' # VARIBAD with non-stationary trajectories
-    # checkpoint_path = 'runs/2023-01-24_09-06-11_VAE/model_best.pth.tar' # VARIBAD with stationary trajectories
-
-    # config = BaseConfig(env=StationaryWindvelEnvConfig(),
-    #                     model=ModelConfig(checkpoint_path='runs/2023-01-02_09-12-57_VAE/model_best.pth.tar'))
-
-    config = BaseConfig(env=StationaryCheetahWindvelEnvConfig(),
-                        model=ModelConfig(checkpoint_path='runs/VAE_HalfCheetah-v2_2023-03-05_16-25-09/model_best.pth.tar'))
-
-    # config = BaseConfig(env=StationaryABSEnvConfig(),
-    #                     model=ModelConfig(checkpoint_path='runs/VAE_FixedABS_2023-03-05_13-45-13/model_best.pth.tar'))
+    config = BaseConfig(env=StationaryHopperWindvelEnvConfig(),
+                        model=ModelConfig(checkpoint_path='runs/VAE_Hopper-v3_2023-04-24_13-37-49/model_best.pth.tar'))
 
     rg = set_seed(config.seed)
 
@@ -139,6 +126,7 @@ def main():
         markov_dist_1.init_transitions(labels=labels[per_task_sample_num:])
 
         test_buffer.clear()
+
         # Collect episodes from Task_0
         env.set_task(task=task_0)
         collect_stationary_trajectories(env=env,

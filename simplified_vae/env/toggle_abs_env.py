@@ -14,7 +14,7 @@ def change_increments(change_freq):
     return int(np.ceil(np.log(1 - random.random()) / np.log(1 - (1 / change_freq)) - 1))
 
 
-class ToggleSingleWheelEnv(gym.Env):
+class ToggleABSEnv(gym.Env):
     """ Simple Model of the Single Wheel system dynamics.
     Model includes the actuator dynamics represented by the double low-pass filter.
     Explicit Euler method is used for integration.
@@ -188,10 +188,10 @@ class ToggleSingleWheelEnv(gym.Env):
 
         # Check for termination
         done = False
-        if self.t_sim > self.T_sim or \
-                np.abs(curr_slip - self.optimal_slip) < 1e-4 or \
-                not self.observation_space.contains(self.curr_state):
-            done = True
+        # if self.t_sim > self.T_sim or \
+        #         np.abs(curr_slip - self.optimal_slip) < 1e-4: #or \
+        #         # not self.observation_space.contains(self.curr_state):
+            # done = True
 
         infos = dict(task=self.task)
 
@@ -289,7 +289,7 @@ class ToggleSingleWheelEnv(gym.Env):
                mode: str = "human",
                close: bool = False):
 
-        super(ToggleSingleWheelEnv, self).render(mode=mode)
+        super(ToggleABSEnv, self).render(mode=mode)
 
     def close(self):
         if self.viewer:
@@ -302,12 +302,6 @@ class ToggleSingleWheelEnv(gym.Env):
 
     def set_task(self, task: np.ndarray):
         self.task = np.asarray(task)
+        self.optimal_slip, self.optimal_friction = self.get_optimal_slip_friction()
 
-    def is_goal_state(self):
-        slip, friction = self.get_slip_friction(self.curr_state[0])
-        opt_slip, opt_friction = self.get_optimal_slip_friction()
 
-        if np.abs(slip - opt_slip) < 1e-4:
-            return True
-        else:
-            return False

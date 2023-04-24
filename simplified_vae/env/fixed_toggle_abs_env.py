@@ -14,7 +14,7 @@ def change_increments(change_freq):
     return int(np.ceil(np.log(1 - random.random()) / np.log(1 - (1 / change_freq)) - 1))
 
 
-class FixedToggleSingleWheelEnv(gym.Env):
+class FixedToggleABSEnv(gym.Env):
     """ Simple Model of the Single Wheel system dynamics.
     Model includes the actuator dynamics represented by the double low-pass filter.
     Explicit Euler method is used for integration.
@@ -170,6 +170,7 @@ class FixedToggleSingleWheelEnv(gym.Env):
             self.next_change = self.time_increments[self.increments_counter]
             self.task_idx = int(not self.task_idx)
             self.set_task(task=self.tasks[self.task_idx])
+            self.optimal_slip, self.optimal_friction = self.get_optimal_slip_friction()
 
             print(f'CHANGED TO TASK {self.current_task} AT STEP {self.counter}!')
 
@@ -198,10 +199,10 @@ class FixedToggleSingleWheelEnv(gym.Env):
 
         # Check for termination
         done = False
-        if self.t_sim > self.T_sim or \
-                np.abs(curr_slip - self.optimal_slip) < 1e-4 or \
-                not self.observation_space.contains(self.curr_state):
-            done = True
+        # if self.t_sim > self.T_sim or \
+        #         np.abs(curr_slip - self.optimal_slip) < 1e-4: # or \
+        #         # not self.observation_space.contains(self.curr_state):
+            # done = True
 
         infos = dict(task=self.task)
 
@@ -299,7 +300,7 @@ class FixedToggleSingleWheelEnv(gym.Env):
                mode: str = "human",
                close: bool = False):
 
-        super(FixedToggleSingleWheelEnv, self).render(mode=mode)
+        super(FixedToggleABSEnv, self).render(mode=mode)
 
     def close(self):
         if self.viewer:
@@ -310,11 +311,4 @@ class FixedToggleSingleWheelEnv(gym.Env):
         friction_grid = self.slip_friction_curve(slip_grid)
         return np.array([slip_grid, friction_grid])
 
-    def is_goal_state(self):
-        slip, friction = self.get_slip_friction(self.curr_state[0])
-        opt_slip, opt_friction = self.get_optimal_slip_friction()
 
-        if np.abs(slip - opt_slip) < 1e-4:
-            return True
-        else:
-            return False

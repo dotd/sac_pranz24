@@ -1,14 +1,8 @@
-from typing import List, Union
-import pydantic
+from typing import List
 import torch
 
-
-class BaseModel(pydantic.BaseModel):
-
-    class Config:
-        arbitrary_types_allowed = True
-        extra = pydantic.Extra.forbid
-    """Disallow extra arguments to init"""
+from simplified_vae.config.envs_config import EnvConfig
+from simplified_vae.config.pydantic_config import BaseModel
 
 
 class EncoderConfig(BaseModel):
@@ -71,6 +65,7 @@ class VAETestBufferConfig(BufferConfig):
     max_episode_len: int = 100
     max_episode_num: int = 50
 
+
 class TrainBufferConfig(BufferConfig):
 
     max_episode_len: int = 1000000
@@ -94,7 +89,7 @@ class AgentConfig(BaseModel):
     num_steps: int = 1000001
     hidden_size: int = 256
     updates_per_step: int = 1
-    start_steps: int = -1
+    start_steps: int = 10000
     target_update_interval: int = 1
     replay_size: int = 1000000
 
@@ -126,7 +121,7 @@ class CPDConfig(BaseModel):
     dist_epsilon = 0.00001
 
     max_episode_len: int = 100
-    max_episode_num: int = 200
+    max_episode_num: int = 600
     clusters_queue_size: int = 10000
     median_window_size = 20
 
@@ -135,143 +130,6 @@ class CPDConfig(BaseModel):
     poisson_freq = 100
     freq_multiplier = 1
     poisson_dist: bool = False
-
-class EnvConfig(BaseModel):
-    name: str = 'HalfCheetah-v2'
-    max_episode_steps = 100
-
-class StationaryWindvelEnvConfig(EnvConfig):
-
-    name: str = 'HalfCheetah-v2'
-
-    max_episode_steps = 100
-
-    low_target_vel: float = 0.
-    high_target_vel: float = 3.
-    low_wind_frc: float = 0.
-    high_wind_frc: float = 20.
-
-
-class ToggleWindvelEnvConfig(EnvConfig):
-
-    name: str = 'HalfCheetah-v2'
-
-    max_episode_steps = 1000000
-
-    low_target_vel: float = 0.
-    high_target_vel: float = 3.
-    low_wind_frc: float = 0.
-    high_wind_frc: float = 20.
-
-
-class FixedToggleWindvelEnvConfig(EnvConfig):
-
-    name: str = 'HalfCheetah-v2'
-
-    max_episode_steps = 1000000
-
-    low_target_vel: float = 0.
-    high_target_vel: float = 3.
-    low_wind_frc: float = 0.
-    high_wind_frc: float = 20.
-
-
-class StationaryABSEnvConfig(EnvConfig):
-
-    """ Constructor.
-     Parameters
-     ----------
-     cp_brake: float
-         Brake pressure coefficient [n/a].
-     r_wheel: float
-         Wheel radius [$m$].
-     j_wheel: float
-         Wheel moment of inertia [$kg m^2$].
-     fn_vehicle: float
-         Normal force (i.e. downward force from car weight) [$N$].
-     vx_vehicle: float
-         Vehicle speed in x direction [$m/s$].
-     lp_filter_1: float
-         Hydraulic low-pass filter coefficient [n/a].
-     lp_filter_2: float
-         Hydraulic low-pass filter coefficient [n/a]
-     tire_b: float
-         Magic-formula tire B coefficient [n/a].
-     tire_c: float
-         Magic-formula tire C coefficient [n/a].
-     tire_d: float
-         Magic-formula tire D coefficient [n/a].
-     tire_e: float
-         Magic-formula tire E coefficient [n/a].
-     dt_sim: float
-         Simulation discretization [s].
-     T_sim: float
-         Simulation time horizon [s].
-     """
-
-    name: str = 'FixedABS'
-
-    cp_brake: float = 43.
-    r_wheel: float = 0.3657
-    j_wheel: float = 2.3120
-    fn_vehicle: float = 1e4
-    vx_vehicle: float = 30.
-    lp_filter_1: float = 0.02
-    lp_filter_2: float = 0.066
-    tire_b: float = 12  # 32.609
-    tire_c: float = 2.3  # 1.533
-    tire_d: float = 1.  # 1.3
-    tire_e: float = 0.97  # 0.8
-    dt_sim: float = 1e-3
-    T_sim: float = 1.0
-    max_episode_steps = 500
-
-    # Spaces
-    observation_lims_low: List = [0., 0., 0.]
-    obsevation_lims_high: List = [100., 300., 300.]
-
-    action_lims_low = 0.
-    action_lims_high = 300.
-
-
-class ToggleABSEnvConfig(EnvConfig):
-
-    name: str = 'ToggleABS'
-
-    cp_brake: float = 43.
-    r_wheel: float = 0.3657
-    j_wheel: float = 2.3120
-    fn_vehicle: float = 1e4
-    vx_vehicle: float = 30.
-    lp_filter_1: float = 0.02
-    lp_filter_2: float = 0.066
-    tire_b: float = 12  # 32.609
-    tire_c: float = 2.3  # 1.533
-    tire_d: float = 1.  # 1.3
-    tire_e: float = 0.97  # 0.8
-    dt_sim: float = 1e-3
-    T_sim: float = 1.0
-    max_episode_steps = 500
-
-
-class FixedToggleABSEnvConfig(EnvConfig):
-
-    name: str = 'ToggleABS'
-
-    cp_brake: float = 43.
-    r_wheel: float = 0.3657
-    j_wheel: float = 2.3120
-    fn_vehicle: float = 1e4
-    vx_vehicle: float = 30.
-    lp_filter_1: float = 0.02
-    lp_filter_2: float = 0.066
-    tire_b: float = 12  # 32.609
-    tire_c: float = 2.3  # 1.533
-    tire_d: float = 1.  # 1.3
-    tire_e: float = 0.97  # 0.8
-    dt_sim: float = 1e-3
-    T_sim: float = 1.0
-    max_episode_steps = 500
 
 
 class BaseConfig(BaseModel):

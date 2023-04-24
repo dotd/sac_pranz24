@@ -6,14 +6,14 @@ from torch.utils.tensorboard import SummaryWriter
 from simplified_vae.config.config import BaseConfig
 
 
-class FixedToggleWindVelEnv(Wrapper):
+class FixedToggleHopperWindVelWrapper(Wrapper):
 
     def __init__(self,
                  env: gym.Env,
                  config: BaseConfig,
                  logger: SummaryWriter):
 
-        super(FixedToggleWindVelEnv, self).__init__(env)
+        super(FixedToggleHopperWindVelWrapper, self).__init__(env)
 
         self.config: BaseConfig = config
         self.logger: SummaryWriter = logger

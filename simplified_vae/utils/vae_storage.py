@@ -39,11 +39,12 @@ class Buffer(object):
 
         # TODO support different size of trajectories
 
-        self.obs[self.curr_insert_idx, :, :] = torch.from_numpy(obs).to(self.device)
-        self.actions[self.curr_insert_idx, :, :] = torch.from_numpy(actions).to(self.device)
-        self.rewards[self.curr_insert_idx, :, :] = torch.from_numpy(rewards).to(self.device)
-        self.next_obs[self.curr_insert_idx, :, :] = torch.from_numpy(next_obs).to(self.device)
-        self.dones[self.curr_insert_idx, :, :] = torch.from_numpy(dones).to(self.device)
+        padding_size = self.obs[0].shape[0] - obs.shape[0]
+        self.obs[self.curr_insert_idx, :, :] = torch.nn.functional.pad(torch.from_numpy(obs).to(self.device), (0, 0, 0, padding_size), mode='constant', value=0)
+        self.actions[self.curr_insert_idx, :, :] = torch.nn.functional.pad(torch.from_numpy(actions).to(self.device), (0, 0, 0, padding_size), mode='constant', value=0)
+        self.rewards[self.curr_insert_idx, :, :] = torch.nn.functional.pad(torch.from_numpy(rewards).to(self.device), (0, 0, 0, padding_size), mode='constant', value=0)
+        self.next_obs[self.curr_insert_idx, :, :] = torch.nn.functional.pad(torch.from_numpy(next_obs).to(self.device), (0, 0, 0, padding_size), mode='constant', value=0)
+        self.dones[self.curr_insert_idx, :, :] = torch.nn.functional.pad(torch.from_numpy(dones).to(self.device), (0, 0, 0, padding_size), mode='constant', value=0)
 
         self.curr_insert_idx = (self.curr_insert_idx + 1) % self.max_episode_num
 

@@ -6,9 +6,9 @@ import torch
 from torch.utils.tensorboard import SummaryWriter
 
 from simplified_vae.config.config import BaseConfig
-from simplified_vae.env.stationary_abs_env import StationarySingleWheelEnv
+from simplified_vae.env.stationary_abs_env import StationaryABSEnv
 from simplified_vae.utils.env_utils import collect_stationary_trajectories, collect_non_stationary_trajectories
-from simplified_vae.env.stationary_cheetah_windvel_wrapper import StationaryCheetahWindVelEnv
+from simplified_vae.env.stationary_cheetah_windvel_wrapper import StationaryCheetahWindVelWrapper
 from simplified_vae.utils.losses import compute_state_reconstruction_loss, compute_reward_reconstruction_loss, \
     compute_kl_loss, compute_kl_loss_with_posterior
 from simplified_vae.models.vae import VAE, RNNVAE
@@ -20,13 +20,13 @@ class VAETrainer:
 
     def __init__(self,
                  config: BaseConfig,
-                 env: StationaryCheetahWindVelEnv,
+                 env: StationaryCheetahWindVelWrapper,
                  logger: SummaryWriter):
 
         self.config: BaseConfig = config
         self.logger: SummaryWriter = logger
 
-        self.env: Union[StationaryCheetahWindVelEnv, StationarySingleWheelEnv] = env
+        self.env: Union[StationaryCheetahWindVelWrapper, StationaryABSEnv] = env
         self.obs_dim: int = env.observation_space.shape[0]
         discrete = isinstance(env.action_space, gym.spaces.Discrete)
         self.action_dim: int = env.action_space.n if discrete else env.action_space.shape[0]

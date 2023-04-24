@@ -6,7 +6,8 @@ import gym
 from matplotlib import pyplot as plt
 
 from simplified_vae.clustering.cluter_utils import latent_clustering
-from simplified_vae.config.config import BaseConfig, StationaryWindvelEnvConfig
+from simplified_vae.config.config import BaseConfig
+from simplified_vae.config.envs_config import StationaryCheetahWindvelEnvConfig
 from simplified_vae.env.environment_factory import env_factory
 from simplified_vae.utils.markov_dist import MarkovDistribution
 from simplified_vae.utils.env_utils import collect_stationary_trajectories, set_seed, \
@@ -282,7 +283,7 @@ def process_stationary_trajectory(env,
 def main():
 
     ## Init config
-    config = BaseConfig(env=StationaryWindvelEnvConfig()) # StationaryWindvelEnvConfig or StationaryABSEnvConfig)
+    config = BaseConfig(env=StationaryCheetahWindvelEnvConfig()) # StationaryWindvelEnvConfig or StationaryABSEnvConfig)
     rg = set_seed(config.seed)
 
     # Init Env

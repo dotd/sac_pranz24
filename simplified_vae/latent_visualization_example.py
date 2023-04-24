@@ -3,7 +3,8 @@ import torch
 
 from matplotlib import pyplot as plt
 
-from simplified_vae.config.config import BaseConfig, StationaryWindvelEnvConfig
+from simplified_vae.config.config import BaseConfig
+from simplified_vae.config.envs_config import StationaryCheetahWindvelEnvConfig
 from simplified_vae.env.environment_factory import env_factory
 from simplified_vae.utils.env_utils import collect_stationary_trajectories, set_seed
 from simplified_vae.models.vae import RNNVAE
@@ -14,7 +15,7 @@ from simplified_vae.utils.vae_storage import Buffer
 def main():
 
     ## Init config
-    config = BaseConfig(env=StationaryWindvelEnvConfig())  # StationaryWindvelEnvConfig or StationaryABSEnvConfig
+    config = BaseConfig(env=StationaryCheetahWindvelEnvConfig())  # StationaryWindvelEnvConfig or StationaryABSEnvConfig
     set_seed(seed=config.seed)
 
     # Init Env

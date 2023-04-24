@@ -43,23 +43,11 @@ def run_cusum(curr_transitions, markov_dist_0, markov_dist_1):
     plt.figure(), plt.plot(g_k), plt.show(block=True)
     return n_c, g_k
 
+
 def main():
 
-    ## Init config
-
-    # checkpoint_path = 'runs/2023-01-02_09-12-57_VAE/model_best.pth.tar' # Our approach
-    # checkpoint_path = 'runs/VAE_FixedABS_2023-03-05_13-45-13/model_best.pth.tar' # Our approach
-    # checkpoint_path = 'runs/2023-01-23_15-54-51_VAE/model_best.pth.tar' # VARIBAD with non-stationary trajectories
-    # checkpoint_path = 'runs/2023-01-24_09-06-11_VAE/model_best.pth.tar' # VARIBAD with stationary trajectories
-
-    # config = BaseConfig(env=StationaryWindvelEnvConfig(),
-    #                     model=ModelConfig(checkpoint_path='runs/2023-01-02_09-12-57_VAE/model_best.pth.tar'))
-
-    config = BaseConfig(env=StationaryCheetahWindvelEnvConfig(),
-                        model=ModelConfig(checkpoint_path='runs/VAE_HalfCheetah-v2_2023-03-05_16-25-09/model_best.pth.tar'))
-
-    # config = BaseConfig(env=StationaryABSEnvConfig(),
-    #                     model=ModelConfig(checkpoint_path='runs/VAE_FixedABS_2023-03-05_13-45-13/model_best.pth.tar'))
+    config = BaseConfig(env=StationaryABSEnvConfig(),
+                        model=ModelConfig(checkpoint_path='runs/VAE_FixedABS_2023-03-05_13-45-13/model_best.pth.tar'))
 
     rg = set_seed(config.seed)
 
@@ -69,6 +57,7 @@ def main():
     obs_dim: int = env.observation_space.shape[0]
     discrete = isinstance(env.action_space, gym.spaces.Discrete)
     action_dim: int = env.action_space.n if discrete else env.action_space.shape[0]
+    tasks = [np.array([12, 2.3, 1, 0.97]), np.array([4, 2.3, 1, 1])]
 
     episode_num = 600
     max_episode_len = 100
@@ -84,7 +73,7 @@ def main():
                          obs_dim=obs_dim, action_dim=action_dim)
 
     # Collect episodes from Task_0
-    env.set_task(task=None)
+    env.set_task(task=tasks[0])
     task_0 = env.get_task()
     collect_stationary_trajectories(env=env,
                                     buffer=test_buffer,
@@ -93,7 +82,7 @@ def main():
                                     env_change_freq=episode_num)
 
     # collect episode from Task_1
-    env.set_task(task=None)
+    env.set_task(task=tasks[1])
     task_1 = env.get_task()
     collect_stationary_trajectories(env=env,
                                     buffer=test_buffer,

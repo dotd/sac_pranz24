@@ -9,7 +9,7 @@ from torch.utils.tensorboard import SummaryWriter
 from src.algos.sac_orig import SACOrig
 from src.utils.replay_memory import ReplayMemory
 
-from simplified_vae.env.stationary_abs_env import StationarySingleWheelEnv
+from simplified_vae.env.stationary_abs_env import StationaryABSEnv
 
 
 def parse_args():
@@ -61,7 +61,7 @@ def run_agent_and_environment(arguments):
     torch.manual_seed(arguments.seed)
     np.random.seed(arguments.seed)
 
-    env = StationarySingleWheelEnv()
+    env = StationaryABSEnv()
     env.seed(arguments.seed)
     env.action_space.seed(arguments.seed)
 
@@ -128,7 +128,7 @@ def run_agent_and_environment(arguments):
                                                                                       episode_steps,
                                                                                       round(episode_reward, 2)))
 
-        if i_episode % 10 == 0 and arguments.eval is True:
+        if i_episode % 10 == 0:
             avg_reward = 0.
             episodes = 10
             for _ in range(episodes):

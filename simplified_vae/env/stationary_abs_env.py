@@ -8,7 +8,7 @@ from torch.utils.tensorboard import SummaryWriter
 from simplified_vae.config.config import BaseConfig
 
 
-class StationarySingleWheelEnv(gym.Env):
+class StationaryABSEnv(gym.Env):
     """ Simple Model of the Single Wheel system dynamics.
     Model includes the actuator dynamics represented by the double low-pass filter.
     Explicit Euler method is used for integration.
@@ -41,6 +41,11 @@ class StationarySingleWheelEnv(gym.Env):
         self.optimal_friction: Optional[np.ndarray] = None
 
         # Spaces
+        self.task_space = spaces.Box(low=np.array(config.env.task_lims_low, dtype=np.float32),
+                                     high=np.array(config.env.task_lims_high, dtype=np.float32),
+                                     dtype=np.float32,
+                                     seed=config.seed)
+
         self.observation_space = spaces.Box(low=np.array(config.env.observation_lims_low, dtype=np.float32),
                                             high=np.array(config.env.obsevation_lims_high, dtype=np.float32),
                                             dtype=np.float32,
@@ -51,6 +56,10 @@ class StationarySingleWheelEnv(gym.Env):
                                        shape=(1,),
                                        dtype=np.float32,
                                        seed=config.seed)
+
+        self.obs_dim: int = self.observation_space.shape[0]
+        self.max_episode_steps = config.env.max_episode_steps
+        self.step_count = 0
 
         # Simulation initialization
         self.viewer = None
@@ -70,11 +79,18 @@ class StationarySingleWheelEnv(gym.Env):
         self.optimal_slip, self.optimal_friction = self.get_optimal_slip_friction()
         self.curr_state = self.get_initial_state()
         self.t_sim = 0.
+        self.step_count = 0
         return self.curr_state
 
     def seed(self, seed=None):
 
         self._seed = seed
+
+        self.task_space = spaces.Box(low=np.array(self.config.env.task_lims_low, dtype=np.float32),
+                                     high=np.array(self.config.env.task_lims_high, dtype=np.float32),
+                                     dtype=np.float32,
+                                     seed=self.config.seed)
+
         self.observation_space = spaces.Box(low=np.array(self.config.env.observation_lims_low, dtype=np.float32),
                                             high=np.array(self.config.env.obsevation_lims_high, dtype=np.float32),
                                             dtype=np.float32,
@@ -124,14 +140,20 @@ class StationarySingleWheelEnv(gym.Env):
         reward = ((curr_friction - self.optimal_friction) - np.abs(curr_slip - self.optimal_slip))
 
         # Check for termination
-        done = False
-        if self.t_sim > self.T_sim or \
-           np.abs(curr_slip - self.optimal_slip) < 1e-4 or \
-           not self.observation_space.contains(self.curr_state):
 
+        if self.step_count > self.max_episode_steps:
             done = True
+        else:
+            done = False
+
+        # if self.t_sim > self.T_sim or \
+        #    np.abs(curr_slip - self.optimal_slip) < 1e-4: # or \
+        #    # not self.observation_space.contains(self.curr_state):
+
+            # done = True
 
         infos = dict(task=self.task)
+        self.step_count += 1
 
         return self.curr_state, reward, done, infos
 
@@ -185,11 +207,11 @@ class StationarySingleWheelEnv(gym.Env):
             A (..., 1) numpy array with Frictions.
         """
         slip = np.clip((self.config.env.vx_vehicle - omega * self.config.env.r_wheel) / np.clip(self.config.env.vx_vehicle, 1., None), 0., 1.)
-        friction = self.slip_friction_curve(slip)
+        friction = self.get_friction(slip)
 
         return slip, friction
 
-    def slip_friction_curve(self, slip: np.ndarray):
+    def get_friction(self, slip: np.ndarray):
 
         """ "Magic" formula for road-tires interaction.
         Parameters
@@ -216,22 +238,22 @@ class StationarySingleWheelEnv(gym.Env):
             Optimal friction.
         """
         slip_grid = np.arange(0., 1., 1e-3)
-        friction_grid = self.slip_friction_curve(slip_grid)
+        friction_grid = self.get_friction(slip_grid)
         return slip_grid[np.argmax(friction_grid)], np.max(friction_grid)
 
     def render(self,
                mode: str = "human",
                close: bool = False):
 
-        super(StationarySingleWheelEnv, self).render(mode=mode)
+        super(StationaryABSEnv, self).render(mode=mode)
 
     def close(self):
         if self.viewer:
             self.viewer.close()
 
-    def get_curve_task(self):
+    def get_task_curve(self):
         slip_grid = np.arange(0., 1., 1e-3)
-        friction_grid = self.slip_friction_curve(slip_grid)
+        friction_grid = self.get_friction(slip_grid)
         return np.array([slip_grid, friction_grid])
 
     def set_task(self, task: np.ndarray):
@@ -240,11 +262,8 @@ class StationarySingleWheelEnv(gym.Env):
         else:
             self.task = task
 
-    def is_goal_state(self):
-        slip, friction = self.get_slip_friction(self.curr_state[0])
-        opt_slip, opt_friction = self.get_optimal_slip_friction()
+        self.optimal_slip, self.optimal_friction = self.get_optimal_slip_friction()
 
-        if np.abs(slip - opt_slip) < 1e-4:
-            return True
-        else:
-            return False
+    def get_task(self):
+        return self.task
+

@@ -14,14 +14,14 @@ def change_increments(change_freq):
     return int(np.ceil(np.log(1 - random.random()) / np.log(1 - (1 / change_freq)) - 1))
 
 
-class ToggleWindVelEnv(Wrapper):
+class ToggleHopperWindVelWrapper(Wrapper):
 
     def __init__(self,
                  env: gym.Env,
                  config: BaseConfig,
                  logger: SummaryWriter):
 
-        super(ToggleWindVelEnv, self).__init__(env)
+        super(ToggleHopperWindVelWrapper, self).__init__(env)
 
         self.config: BaseConfig = config
         self.logger: SummaryWriter = logger

@@ -126,7 +126,7 @@ def run_agent_and_environment(arguments):
                                                                                       episode_steps,
                                                                                       round(episode_reward, 2)))
 
-        if i_episode % 10 == 0 and arguments.eval is True:
+        if i_episode % 10 == 0:
             avg_reward = 0.
             episodes = 10
             for _ in range(episodes):
