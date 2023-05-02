@@ -46,7 +46,7 @@ def run_cusum(curr_transitions, markov_dist_0, markov_dist_1):
 def main():
 
     config = BaseConfig(env=StationaryHopperWindvelEnvConfig(),
-                        model=ModelConfig(checkpoint_path='runs/VAE_Hopper-v3_2023-04-24_13-37-49/model_best.pth.tar'))
+                        model=ModelConfig(checkpoint_path='../runs/old/VAE_Hopper-v3_2023-04-24_13-37-49/model_best.pth.tar'))
 
     rg = set_seed(config.seed)
 

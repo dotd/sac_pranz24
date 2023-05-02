@@ -49,7 +49,14 @@ def load_checkpoint(checkpoint_path: str,
     else:
         return model, epoch, loss
 
+
 def write_config(config: BaseConfig, logdir: str):
 
     with open(os.path.join(logdir, 'train_config.json'), 'w') as outfile:
-        json.dump(config.training.json(), outfile)
+
+        json.dump(config.training.json(), outfile, indent=10)
+        json.dump(config.model.json(), outfile, indent=10)
+        json.dump(config.agent.json(), outfile, indent=10)
+        json.dump(config.train_buffer.json(), outfile, indent=10)
+        json.dump(config.vae_train_buffer.json(), outfile, indent=10)
+

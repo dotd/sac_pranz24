@@ -16,7 +16,7 @@ def main():
     stationary_config = BaseConfig(env=StationaryCheetahWindvelEnvConfig())
 
     set_seed(config.seed)
-    logger = SummaryWriter(f'runs/BAQCD_{config.env.name}_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}')
+    logger = SummaryWriter(f'runs/BAQCD_{config.model.type}_{config.env.name}_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}')
 
     # Init Env
     env = env_factory(config=config, logger=logger)

@@ -47,7 +47,7 @@ def run_cusum(curr_transitions, markov_dist_0, markov_dist_1):
 def main():
 
     config = BaseConfig(env=StationaryABSEnvConfig(),
-                        model=ModelConfig(checkpoint_path='runs/VAE_FixedABS_2023-03-05_13-45-13/model_best.pth.tar'))
+                        model=ModelConfig(checkpoint_path='../runs/old/VAE_FixedABS_2023-03-05_13-45-13/model_best.pth.tar'))
 
     rg = set_seed(config.seed)
 

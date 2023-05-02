@@ -153,7 +153,12 @@ class VAETrainer:
         rewards_d = rewards.to(self.config.device)
         next_obs_d = next_obs.to(self.config.device)
 
-        next_obs_preds, rewards_pred, latent_mean, latent_logvar, _, _ = self.model(obs_d, actions_d, rewards_d, next_obs_d)
+        if self.config.model.type == 'RNNVAE':
+            next_obs_preds, rewards_pred, latent_mean, latent_logvar, _, _ = self.model(obs_d, actions_d, rewards_d, next_obs_d)
+        elif self.config.model.type == 'VAE':
+            next_obs_preds, rewards_pred, latent_mean, latent_logvar = self.model(obs_d, actions_d, rewards_d, next_obs_d)
+        else:
+            raise NotImplementedError
 
         state_reconstruction_loss = compute_state_reconstruction_loss(next_obs_preds, next_obs_d)
         reward_reconstruction_loss = compute_reward_reconstruction_loss(rewards_pred, rewards_d)
@@ -187,7 +192,12 @@ class VAETrainer:
             rewards_d = rewards.to(self.config.device)
             next_obs_d = next_obs.to(self.config.device)
 
-            next_obs_preds, rewards_pred, latent_mean, latent_logvar, _, _ = self.model(obs_d, actions_d, rewards_d, next_obs_d)
+            if self.config.model.type == 'RNNVAE':
+                next_obs_preds, rewards_pred, latent_mean, latent_logvar, _, _ = self.model(obs_d, actions_d, rewards_d, next_obs_d)
+            elif self.config.model.type == 'VAE':
+                next_obs_preds, rewards_pred, latent_mean, latent_logvar = self.model(obs_d, actions_d, rewards_d, next_obs_d)
+            else:
+                raise NotImplementedError
 
             state_reconstruction_loss = compute_state_reconstruction_loss(next_obs_preds, next_obs_d)
             reward_reconstruction_loss = compute_reward_reconstruction_loss(rewards_pred, rewards_d)

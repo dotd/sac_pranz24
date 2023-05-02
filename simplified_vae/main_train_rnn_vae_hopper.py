@@ -17,7 +17,7 @@ def main():
 
     set_seed(seed=config.seed)
 
-    logger = SummaryWriter(f'runs/VAE_{config.env.name}_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}')
+    logger = SummaryWriter(f'runs/{config.model.type}_{config.env.name}_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}')
 
     env = env_factory(config=config, logger=logger)
 

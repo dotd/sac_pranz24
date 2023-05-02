@@ -115,13 +115,13 @@ class ModelConfig(BaseModel):
 class CPDConfig(BaseModel):
 
     alpha_val: float = 0.5
-    clusters_num = 10
-    cusum_thresh = 7
+    clusters_num = 15
+    cusum_thresh = 10
     meta_dist_num: int = 2
     dist_epsilon = 0.00001
 
     max_episode_len: int = 100
-    max_episode_num: int = 600
+    max_episode_num: int = 1000
     clusters_queue_size: int = 10000
     median_window_size = 20
 
@@ -141,7 +141,7 @@ class BaseConfig(BaseModel):
     cpd: CPDConfig = CPDConfig()
     model: ModelConfig = ModelConfig()
     training: VAETrainingConfig = VAETrainingConfig()
-    env: EnvConfig
+    env: EnvConfig = EnvConfig()
     train_buffer: TrainBufferConfig = TrainBufferConfig()
     test_buffer: TestBufferConfig = TestBufferConfig()
     vae_train_buffer: VAETrainBufferConfig = VAETrainBufferConfig()

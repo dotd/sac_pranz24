@@ -9,7 +9,8 @@ from torch.utils.tensorboard import SummaryWriter
 from simplified_vae.config.config import BaseConfig, ModelConfig, \
     AgentConfig
 from simplified_vae.config.envs_config import StationaryCheetahWindvelEnvConfig, FixedToggleCheetahWindvelEnvConfig, \
-    StationaryABSEnvConfig, FixedToggleABSEnvConfig, FixedToggleHopperWindvelEnvConfig, StationaryHopperWindvelEnvConfig
+    StationaryABSEnvConfig, FixedToggleABSEnvConfig, FixedToggleHopperWindvelEnvConfig, \
+    StationaryHopperWindvelEnvConfig, FixedToggleSwimmerWindvelEnvConfig, StationarySwimmerWindvelEnvConfig
 from simplified_vae.env.environment_factory import env_factory
 from simplified_vae.utils.env_utils import set_seed
 from simplified_vae.utils.poc_trainer import POCTrainer
@@ -46,27 +47,55 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__),'/simplif
 
 def main():
 
-    ### Cheetah WindVel ###
+    ### Cheetah WindVel VAE ###
     #######################
+    # model_type = 'VAE'
+    # checkpoint_path = 'runs/VAE_HalfCheetah-v2_2023-04-27_13-32-38/model_best.pth.tar'
 
     # config = BaseConfig(env=FixedToggleCheetahWindvelEnvConfig(),
-    #                     model=ModelConfig(checkpoint_path='runs/2023-01-02_09-12-57_VAE/model_best.pth.tar'),
+    #                     model=ModelConfig(type=model_type, checkpoint_path=checkpoint_path),
     #                     agent=AgentConfig(start_steps=-1))
     #
     # stationary_config = BaseConfig(env=StationaryCheetahWindvelEnvConfig(),
-    #                                model=ModelConfig(checkpoint_path='runs/2023-01-02_09-12-57_VAE/model_best.pth.tar'),
+    #                                model=ModelConfig(type=model_type, checkpoint_path=checkpoint_path),
     #                                agent=AgentConfig(start_steps=-1))
 
+    ### Cheetah WindVel RNN-VAE ###
+    #######################
+
+    # model_type = 'RNNVAE'
+    # checkpoint_path = 'runs/2023-01-02_09-12-57_VAE/model_best.pth.tar'
+
+    # config = BaseConfig(env=FixedToggleCheetahWindvelEnvConfig(),
+    #                     model=ModelConfig(type=model_type, checkpoint_path=checkpoint_path),
+    #                     agent=AgentConfig(start_steps=-1))
+    #
+    # stationary_config = BaseConfig(env=StationaryCheetahWindvelEnvConfig(),
+    #                                model=ModelConfig(type=model_type, checkpoint_path=checkpoint_path),
+    #                                agent=AgentConfig(start_steps=-1))
+
+    ### Swimmer WindVel RNN-VAE###
+    #######################
+
+    model_type = 'RNNVAE'
+    checkpoint_path = 'runs/RNNVAE_Swimmer-v3_2023-05-01_14-24-34/model_best.pth.tar'
+    config = BaseConfig(env=FixedToggleSwimmerWindvelEnvConfig(),
+                        model=ModelConfig(type=model_type, checkpoint_path=checkpoint_path),
+                        agent=AgentConfig(start_steps=-1))
+
+    stationary_config = BaseConfig(env=StationarySwimmerWindvelEnvConfig(),
+                                   model=ModelConfig(type=model_type, checkpoint_path=checkpoint_path),
+                                   agent=AgentConfig(start_steps=-1))
     ### Hopper WindVel ###
     #######################
 
-    config = BaseConfig(env=FixedToggleHopperWindvelEnvConfig(),
-                        model=ModelConfig(checkpoint_path='runs/VAE_Hopper-v3_2023-04-24_13-37-49/model_best.pth.tar'),
-                        agent=AgentConfig(start_steps=-1))
-
-    stationary_config = BaseConfig(env=StationaryHopperWindvelEnvConfig(),
-                                   model=ModelConfig(checkpoint_path='runs/VAE_Hopper-v3_2023-04-24_13-37-49/model_best.pth.tar'),
-                                   agent=AgentConfig(start_steps=-1))
+    # config = BaseConfig(env=FixedToggleHopperWindvelEnvConfig(),
+    #                     model=ModelConfig(checkpoint_path='runs/old/VAE_Hopper-v3_2023-04-24_13-37-49/model_best.pth.tar'),
+    #                     agent=AgentConfig(start_steps=-1))
+    #
+    # stationary_config = BaseConfig(env=StationaryHopperWindvelEnvConfig(),
+    #                                model=ModelConfig(checkpoint_path='runs/old/VAE_Hopper-v3_2023-04-24_13-37-49/model_best.pth.tar'),
+    #                                agent=AgentConfig(start_steps=-1))
 
     ### ABS Env ###
     ###############
@@ -79,7 +108,7 @@ def main():
     #                                model=ModelConfig(checkpoint_path='runs/VAE_FixedABS_2023-03-05_13-45-13/model_best.pth.tar'),
     #                                agent=AgentConfig(start_steps=-1))
 
-    logger = SummaryWriter(f'runs/BAQCD_{config.env.name}_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}')
+    logger = SummaryWriter(f'runs/BAQCD_{config.model.type}_{config.env.name}_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}')
     set_seed(config.seed)
 
     wandb.init(project="cusum_exps",

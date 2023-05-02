@@ -98,13 +98,25 @@ class POCTrainer:
 
         self.model.eval()
         with torch.no_grad():
-            latent_sample_0, latent_mean_0, latent_logvar_0, output_0, hidden_0 = self.model.encoder(obs=obs_0_d,
-                                                                                                     actions=actions_0_d,
-                                                                                                     rewards=rewards_0_d)
 
-            latent_sample_1, latent_mean_1, latent_logvar_1, output_1, hidden_1 = self.model.encoder(obs=obs_1_d,
-                                                                                                     actions=actions_1_d,
-                                                                                                     rewards=rewards_1_d)
+            if self.config.model.type == 'RNNVAE':
+                latent_sample_0, latent_mean_0, latent_logvar_0, output_0, hidden_0 = self.model.encoder(obs=obs_0_d,
+                                                                                                         actions=actions_0_d,
+                                                                                                         rewards=rewards_0_d)
+
+                latent_sample_1, latent_mean_1, latent_logvar_1, output_1, hidden_1 = self.model.encoder(obs=obs_1_d,
+                                                                                                         actions=actions_1_d,
+                                                                                                         rewards=rewards_1_d)
+            elif self.config.model.type == 'VAE':
+                latent_sample_0, latent_mean_0, latent_logvar_0 = self.model.encoder(obs=obs_0_d,
+                                                                                               actions=actions_0_d,
+                                                                                               rewards=rewards_0_d)
+
+                latent_sample_1, latent_mean_1, latent_logvar_1 = self.model.encoder(obs=obs_1_d,
+                                                                                               actions=actions_1_d,
+                                                                                               rewards=rewards_1_d)
+            else:
+                raise NotImplementedError
 
         latent_mean = torch.cat([latent_mean_0, latent_mean_1], dim=0)
         latent_mean_h = latent_mean.detach().cpu().numpy()
@@ -127,13 +139,14 @@ class POCTrainer:
         sum_reward_windows = [deque(maxlen=self.config.training.sum_reward_window_size),
                               deque(maxlen=self.config.training.sum_reward_window_size)]
 
+        self.env.set_task(self.env.tasks[0])
+
         for i_episode in itertools.count(1):
 
             episode_reward = 0
             episode_steps = 0
             done = False
 
-            self.env.set_task(self.env.tasks[0])
             obs = self.env.reset()
 
             prev_label = None
@@ -172,9 +185,6 @@ class POCTrainer:
                         updates += 1
 
                 next_obs, reward, done, _ = self.env.step(action)  # Step
-
-                if done:
-                    a = 1
 
                 # Ignore the "done" signal if it comes from hitting the time horizon.
                 # (https://github.com/openai/spinningup/blob/master/spinup/algos/sac/sac.py)
@@ -224,9 +234,9 @@ class POCTrainer:
                 break
 
             # self.logger.add_scalar('reward/train', episode_reward, i_episode)
-            print("Episode: {}, total numsteps: {}, episode steps: {}, reward: {}".format(i_episode, total_steps,
-                                                                                          episode_steps,
-                                                                                          round(episode_reward, 2)))
+            # print("Episode: {}, total numsteps: {}, episode steps: {}, reward: {}".format(i_episode, total_steps,
+            #                                                                               episode_steps,
+            #                                                                               round(episode_reward, 2)))
 
     def train_iter(self, obs: torch.Tensor,
                          actions: torch.Tensor,
@@ -285,13 +295,25 @@ class POCTrainer:
         self.model.eval()
         with torch.no_grad():
             # perform add_transition and cusum
-            curr_latent_sample, \
-            curr_latent_mean, \
-            curr_latent_logvar, \
-            curr_output, hidden_state = self.model.encoder(obs=obs,
-                                                           actions=action,
-                                                           rewards=np.array([reward]),
-                                                           hidden_state=hidden_state)
+
+            if self.config.model.type == 'RNNVAE':
+                curr_latent_sample, \
+                curr_latent_mean, \
+                curr_latent_logvar, \
+                curr_output, hidden_state = self.model.encoder(obs=obs,
+                                                               actions=action,
+                                                               rewards=np.array([reward]),
+                                                               hidden_state=hidden_state)
+
+            elif self.config.model.type == 'VAE':
+                curr_latent_sample, \
+                curr_latent_mean, \
+                curr_latent_logvar = self.model.encoder(obs=obs,
+                                                        actions=action,
+                                                        rewards=np.array([reward]))
+
+            else:
+                raise NotImplementedError
 
         self.clusterer.update_clusters(new_obs=curr_latent_mean)
         curr_label = self.clusterer.predict(curr_latent_mean)

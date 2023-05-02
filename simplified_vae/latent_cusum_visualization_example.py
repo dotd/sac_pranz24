@@ -7,7 +7,8 @@ from matplotlib import pyplot as plt
 
 from simplified_vae.clustering.cluter_utils import latent_clustering
 from simplified_vae.config.config import BaseConfig, ModelConfig
-from simplified_vae.config.envs_config import StationaryCheetahWindvelEnvConfig, StationaryABSEnvConfig
+from simplified_vae.config.envs_config import StationaryCheetahWindvelEnvConfig, StationaryABSEnvConfig, \
+    StationarySwimmerWindvelEnvConfig
 from simplified_vae.env.environment_factory import env_factory
 from simplified_vae.utils.markov_dist import MarkovDistribution
 from simplified_vae.utils.env_utils import collect_stationary_trajectories, set_seed
@@ -56,10 +57,13 @@ def main():
     #                     model=ModelConfig(checkpoint_path='runs/2023-01-02_09-12-57_VAE/model_best.pth.tar'))
 
     config = BaseConfig(env=StationaryCheetahWindvelEnvConfig(),
-                        model=ModelConfig(checkpoint_path='runs/VAE_HalfCheetah-v2_2023-03-05_16-25-09/model_best.pth.tar'))
+                        model=ModelConfig(type='RNNVAE', checkpoint_path='runs/RNNVAE_HalfCheetah-v2_2023-04-27_15-33-09/model_best.pth.tar'))
 
-    # config = BaseConfig(env=StationaryABSEnvConfig(),
-    #                     model=ModelConfig(checkpoint_path='runs/VAE_FixedABS_2023-03-05_13-45-13/model_best.pth.tar'))
+    # config = BaseConfig(env=StationaryCheetahWindvelEnvConfig(),
+    #                     model=ModelConfig(type='VAE', checkpoint_path='runs/VAE_HalfCheetah-v2_2023-05-01_10-46-28/model_best.pth.tar'))
+    #
+    # config = BaseConfig(env=StationarySwimmerWindvelEnvConfig(),
+    #                     model=ModelConfig(type='RNNVAE', checkpoint_path='runs/RNNVAE_Swimmer-v3_2023-05-01_14-24-34/model_best.pth.tar'))
 
     rg = set_seed(config.seed)
 
@@ -111,8 +115,23 @@ def main():
         obs_0_d, actions_0_d, rewards_0_d, next_obs_0_d = all_to_device(obs_0, actions_0, rewards_0, next_obs_0, device=config.device)
         obs_1_d, actions_1_d, rewards_1_d, next_obs_1_d = all_to_device(obs_1, actions_1, rewards_1, next_obs_1, device=config.device)
 
-        latent_sample_0, latent_mean_0, latent_logvar_0, output_0, hidden_state = model.encoder(obs=obs_0_d, actions=actions_0_d, rewards=rewards_0_d)
-        latent_sample_1, latent_mean_1, latent_logvar_1, output_1, hidden_state = model.encoder(obs=obs_1_d, actions=actions_1_d, rewards=rewards_1_d)
+        if config.model.type == 'RNNVAE':
+            latent_sample_0, latent_mean_0, latent_logvar_0, output_0, hidden_state = model.encoder(obs=obs_0_d,
+                                                                                                    actions=actions_0_d,
+                                                                                                    rewards=rewards_0_d)
+            latent_sample_1, latent_mean_1, latent_logvar_1, output_1, hidden_state = model.encoder(obs=obs_1_d,
+                                                                                                    actions=actions_1_d,
+                                                                                                    rewards=rewards_1_d)
+
+        elif config.model.type == 'VAE':
+            latent_sample_0, latent_mean_0, latent_logvar_0 = model.encoder(obs=obs_0_d,
+                                                                            actions=actions_0_d,
+                                                                            rewards=rewards_0_d)
+            latent_sample_1, latent_mean_1, latent_logvar_1 = model.encoder(obs=obs_1_d,
+                                                                            actions=actions_1_d,
+                                                                            rewards=rewards_1_d)
+        else:
+            raise NotImplementedError
 
         latent_mean = torch.cat([latent_mean_0, latent_mean_1], dim=0)
 
@@ -173,10 +192,26 @@ def main():
                                 next_obs_1[:, :config.train_buffer.max_episode_len // 2, :]], dim=1)
 
         # joint Trajectory
-        obs_2_d, actions_2_d, rewards_2_d, next_obs_2_d = all_to_device(obs_2, actions_2, rewards_2, next_obs_2, device=config.device)
-        latent_sample_2, latent_mean_2, latent_logvar_2, output_0, hidden_state = model.encoder(obs=obs_2_d, actions=actions_2_d, rewards=rewards_2_d)
 
-        sample_joint_trajectory = latent_mean_2[0, ...]
+        if config.model.type == 'RNNVAE':
+            obs_2_d, actions_2_d, rewards_2_d, next_obs_2_d = all_to_device(obs_2, actions_2, rewards_2, next_obs_2,
+                                                                            device=config.device)
+            latent_sample_2, latent_mean_2, latent_logvar_2, output_0, hidden_state = model.encoder(obs=obs_2_d,
+                                                                                                    actions=actions_2_d,
+                                                                                                    rewards=rewards_2_d)
+        elif config.model.type == 'VAE':
+            obs_2_d, actions_2_d, rewards_2_d, next_obs_2_d = all_to_device(obs_2,
+                                                                            actions_2,
+                                                                            rewards_2,
+                                                                            next_obs_2,
+                                                                            device=config.device)
+            latent_sample_2, latent_mean_2, latent_logvar_2 = model.encoder(obs=obs_2_d,
+                                                                            actions=actions_2_d,
+                                                                            rewards=rewards_2_d)
+        else:
+            raise NotImplementedError
+
+        sample_joint_trajectory = latent_mean_2[30, ...]
         sample_joint_trajectory = sample_joint_trajectory.detach().cpu().numpy()
 
         curr_labels = kmeans.predict(sample_joint_trajectory)
@@ -184,8 +219,19 @@ def main():
         n_c, g_k = run_cusum(curr_transitions, markov_dist_0, markov_dist_1)
 
         # Single Trajectory
-        obs_0_d, actions_0_d, rewards_0_d, next_obs_0_d = all_to_device(obs_0, actions_0, rewards_0, next_obs_0, device=config.device)
-        latent_sample_0, latent_mean_0, latent_logvar_0, output_0, hidden_state = model.encoder(obs=obs_0_d, actions=actions_0_d, rewards=rewards_0_d)
+        if config.model.type == 'RNNVAE':
+            obs_0_d, actions_0_d, rewards_0_d, next_obs_0_d = all_to_device(obs_0, actions_0, rewards_0, next_obs_0,
+                                                                            device=config.device)
+            latent_sample_0, latent_mean_0, latent_logvar_0, output_0, hidden_state = model.encoder(obs=obs_0_d,
+                                                                                                    actions=actions_0_d,
+                                                                                                    rewards=rewards_0_d)
+
+        elif config.model.type == 'VAE':
+            obs_0_d, actions_0_d, rewards_0_d, next_obs_0_d = all_to_device(obs_0, actions_0, rewards_0, next_obs_0,
+                                                                            device=config.device)
+            latent_sample_0, latent_mean_0, latent_logvar_0 = model.encoder(obs=obs_0_d,
+                                                                            actions=actions_0_d,
+                                                                            rewards=rewards_0_d)
 
         sample_joint_trajectory = latent_mean_0[0, ...]
         sample_joint_trajectory = sample_joint_trajectory.detach().cpu().numpy()
