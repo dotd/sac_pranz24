@@ -45,7 +45,7 @@ class VAETrainingConfig(BaseModel):
 
     sum_reward_window_size = 100
     eval_freq: int = 50
-    print_train_loss_freq = 50
+    print_train_loss_freq = 100
 
     save_freq: int = 50
 
@@ -117,13 +117,13 @@ class ModelConfig(BaseModel):
 class CPDConfig(BaseModel):
 
     alpha_val: float = 0.5
-    clusters_num = 15
+    clusters_num = 10
     cusum_thresh = 10
     meta_dist_num: int = 2
     dist_epsilon = 0.00001
 
     max_env_steps: int = 500
-    max_total_steps = 20000 # 100000
+    max_total_steps = 20000
     clusters_queue_size: int = 10000
     median_window_size = 20
 

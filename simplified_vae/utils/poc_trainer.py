@@ -25,7 +25,6 @@ from simplified_vae.utils.model_utils import init_model, all_to_device
 from simplified_vae.utils.vae_storage import Buffer
 from simplified_vae.utils.logging_utils import write_config
 from simplified_vae.models.sac import SAC
-from src.utils.replay_memory import ReplayMemory
 
 
 class POCTrainer:
@@ -70,6 +69,7 @@ class POCTrainer:
 
         self.total_agent_steps: List = [0,0]
         self.total_agent_updates: List = [0, 0]
+        self.total_steps = 0
         self.cpd_detect_counter: int = 0
         self.curr_agent_idx = 0
 
@@ -144,7 +144,9 @@ class POCTrainer:
 
         self.env.set_task(self.env.tasks[0])
 
-        for i_episode in itertools.count(1):
+        episodes_lengths = []
+
+        for episode_idx in itertools.count(1):
 
             curr_episode_reward = 0
             curr_episode_steps = 0
@@ -169,14 +171,15 @@ class POCTrainer:
                                                                      action=action,
                                                                      reward=reward,
                                                                      hidden_state=hidden_state,
+                                                                     lengths=[1],
                                                                      prev_label=prev_label,
                                                                      episode_steps=curr_episode_steps,
                                                                      curr_agent_idx=self.curr_agent_idx)
 
                 if n_c:  # change has been detected
-                    curr_agent_idx = int(not self.curr_agent_idx)
+                    self.curr_agent_idx = int(not self.curr_agent_idx)
                     self.cpd_detect_counter += 1
-                    print(f'Change Point Detected at {curr_episode_steps}!!!')
+                    print(f'Change Point Detected at {self.total_steps}!!!')
                     # wandb.log({'detected_cpd_step_v1':episode_steps}, step=cpd_detect_counter)
                     # wandb.log({'detected_cpd_step_v2': episode_steps}, step=episode_steps)
 
@@ -185,6 +188,7 @@ class POCTrainer:
                 curr_episode_reward += reward
                 curr_episode_steps += 1
 
+                self.total_steps += 1
                 self.total_agent_steps[self.curr_agent_idx] += 1
                 sum_reward_windows[self.curr_agent_idx].append(reward)
                 self.log_running_avg_reward(sum_reward_windows)
@@ -195,17 +199,11 @@ class POCTrainer:
             if self.total_agent_steps[self.curr_agent_idx] > self.config.agent.num_steps:
                 break
 
-            # self.logger.add_scalar('reward/train', episode_reward, i_episode)
-            # print("Episode: {}, total numsteps: {}, episode steps: {}, reward: {}".format(i_episode, total_steps,
-            #                                                                               episode_steps,
-            #                                                                               round(episode_reward, 2)))
+            if done:
+                # print(f'Finished Episode {episode_idx} with {curr_episode_steps} steps, Total Steps = {self.total_steps}')
+                episodes_lengths.append(curr_episode_steps)
 
-    def train_iter(self, obs: torch.Tensor,
-                         actions: torch.Tensor,
-                         rewards: torch.Tensor,
-                         next_obs: torch.Tensor):
 
-        pass
 
     def test_model(self):
 
@@ -282,7 +280,8 @@ class POCTrainer:
     def encode_transition(self, obs: torch.Tensor,
                                 action: torch.Tensor,
                                 reward: torch.Tensor,
-                                hidden_state: torch.Tensor):
+                                hidden_state: torch.Tensor,
+                                lengths: List):
 
         self.model.eval()
         with torch.no_grad():
@@ -295,7 +294,8 @@ class POCTrainer:
                 curr_output, hidden_state = self.model.encoder(obs=obs,
                                                                actions=action,
                                                                rewards=np.array([reward]),
-                                                               hidden_state=hidden_state)
+                                                               hidden_state=hidden_state,
+                                                               lengths=lengths)
 
             elif self.config.model.type == 'VAE':
                 curr_latent_sample, \
@@ -314,6 +314,7 @@ class POCTrainer:
                    action: torch.Tensor,
                    reward: torch.Tensor,
                    hidden_state: torch.Tensor,
+                   lengths: List,
                    prev_label: np.ndarray,
                    episode_steps: int,
                    curr_agent_idx: int):
@@ -321,10 +322,11 @@ class POCTrainer:
         curr_latent_mean = self.encode_transition(obs=obs,
                                                   action=action,
                                                   reward=reward,
-                                                  hidden_state=hidden_state)
+                                                  hidden_state=hidden_state,
+                                                  lengths=lengths)
 
         self.clusterer.update_clusters(new_obs=curr_latent_mean)
-        curr_label = self.clusterer.predict(curr_latent_mean)
+        curr_label = self.clusterer.predict(curr_latent_mean.reshape(1,-1))
 
         if episode_steps > 0:
             n_c, g_k = self.cpd.update_transition(curr_transition=(prev_label.item(), curr_label.item()),

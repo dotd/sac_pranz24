@@ -30,7 +30,11 @@ class MarkovDistribution:
         self.column_sum_vec: np.ndarray = np.zeros((self.state_num, 1))
 
     def pdf(self, sample: Union[Tuple[Tuple, Tuple], List[List]]):
-        return max(self.transition_mat[sample[0], sample[1]], 0.000001) / min(max(self.column_sum_vec[sample[0], 0], 0.000001), 10000000)
+        if self.transition_mat[sample[0], sample[1]] == 0: # No info on transition
+            return 0.000001
+        else:
+            return self.transition_mat[sample[0], sample[1]] / self.column_sum_vec[sample[0], 0]
+            # return max(self.transition_mat[sample[0], sample[1]], 0.000001) / min(max(self.column_sum_vec[sample[0], 0], 0.000001), 10000000)
 
     def rvs(self, size: int):
         raise NotImplementedError
@@ -70,8 +74,8 @@ class MarkovDistribution:
         self.transition_mat = curr_transition_mat
         self.column_sum_vec = curr_column_sum_vec
 
-        curr_transitios = np.stack([labels[0:-1], labels[1:]], axis=1)
-        self.dist_window_queue.extend(curr_transitios)
+        curr_transitions = np.stack([labels[0:-1], labels[1:]], axis=1)
+        self.dist_window_queue.extend(curr_transitions)
 
     def reset(self):
 

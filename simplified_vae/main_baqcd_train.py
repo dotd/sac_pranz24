@@ -65,7 +65,7 @@ def main():
 
     # model_type = 'RNNVAE'
     # checkpoint_path = 'runs/2023-01-02_09-12-57_VAE/model_best.pth.tar'
-
+    #
     # config = BaseConfig(env=FixedToggleCheetahWindvelEnvConfig(),
     #                     model=ModelConfig(type=model_type, checkpoint_path=checkpoint_path),
     #                     agent=AgentConfig(start_steps=-1))
@@ -91,11 +91,11 @@ def main():
 
     config = BaseConfig(env=FixedToggleHopperWindvelEnvConfig(),
                         model=ModelConfig(checkpoint_path='runs/RNNVAE_Hopper-v3_2023-05-02_15-58-56/model_best.pth.tar'),
-                        agent=AgentConfig(start_steps=-1))
+                        agent=AgentConfig(start_steps=1000))
 
     stationary_config = BaseConfig(env=StationaryHopperWindvelEnvConfig(),
                                    model=ModelConfig(checkpoint_path='runs/RNNVAE_Hopper-v3_2023-05-02_15-58-56/model_best.pth.tar'),
-                                   agent=AgentConfig(start_steps=-1))
+                                   agent=AgentConfig(start_steps=1000))
 
     ### ABS Env ###
     ###############

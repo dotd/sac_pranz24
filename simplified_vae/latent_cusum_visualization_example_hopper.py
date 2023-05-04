@@ -58,7 +58,7 @@ def main():
     action_dim: int = env.action_space.n if discrete else env.action_space.shape[0]
 
     max_episode_len = 500
-    max_total_steps = 10000
+    max_total_steps = 20000
     sample_episode_num = 100
     clusters_num = 10
 
@@ -79,7 +79,8 @@ def main():
                                     buffer=task_0_buffer,
                                     max_env_steps=max_episode_len,
                                     max_total_steps=max_total_steps,
-                                    env_change_freq=max_total_steps)
+                                    env_change_freq=max_total_steps,
+                                    is_print=True)
 
     # collect episode from Task_1
     env.set_task(task=None)
@@ -88,12 +89,13 @@ def main():
                                     buffer=task_1_buffer,
                                     max_env_steps=max_episode_len,
                                     max_total_steps=max_total_steps,
-                                    env_change_freq=max_total_steps)
+                                    env_change_freq=max_total_steps,
+                                    is_print=True)
 
     model.eval()
     with torch.no_grad():
-        obs_0, actions_0, rewards_0, next_obs_0, lengths_0 = task_0_buffer.sample_section(start_idx=0, end_idx=sample_episode_num)
-        obs_1, actions_1, rewards_1, next_obs_1, lengths_1 = task_1_buffer.sample_section(start_idx=0, end_idx=sample_episode_num)
+        obs_0, actions_0, rewards_0, next_obs_0, lengths_0 = task_0_buffer.sample_section(start_idx=0, end_idx=len(task_0_buffer.obs))
+        obs_1, actions_1, rewards_1, next_obs_1, lengths_1 = task_1_buffer.sample_section(start_idx=0, end_idx=len(task_1_buffer.obs))
 
         obs_0_d, actions_0_d, rewards_0_d, next_obs_0_d = all_to_device(obs_0, actions_0, rewards_0, next_obs_0, device=config.device)
         obs_1_d, actions_1_d, rewards_1_d, next_obs_1_d = all_to_device(obs_1, actions_1, rewards_1, next_obs_1, device=config.device)
@@ -104,8 +106,8 @@ def main():
         latent_mean_0_h = latent_mean_0.detach().cpu().numpy()
         latent_mean_1_h = latent_mean_1.detach().cpu().numpy()
 
-        latent_mean_0_flat = np.concatenate([latent_mean_0_h[i][:lengths_0[i]] for i in range(sample_episode_num)], axis=0)
-        latent_mean_1_flat = np.concatenate([latent_mean_1_h[i][:lengths_1[i]] for i in range(sample_episode_num)], axis=0)
+        latent_mean_0_flat = np.concatenate([latent_mean_0_h[i][:lengths_0[i]] for i in range(len(task_0_buffer.obs))], axis=0)
+        latent_mean_1_flat = np.concatenate([latent_mean_1_h[i][:lengths_1[i]] for i in range(len(task_1_buffer.obs))], axis=0)
 
         latent_mean_h = np.concatenate([latent_mean_0_flat, latent_mean_1_flat], axis=0)
 
@@ -133,7 +135,8 @@ def main():
                                         buffer=task_0_buffer,
                                         max_env_steps=max_episode_len,
                                         max_total_steps=max_total_steps,
-                                        env_change_freq=max_total_steps)
+                                        env_change_freq=max_total_steps,
+                                        is_print=True)
 
         # collect episode from Task_1
         env.set_task(task=task_1)
@@ -141,7 +144,8 @@ def main():
                                         buffer=task_1_buffer,
                                         max_env_steps=max_episode_len,
                                         max_total_steps=max_total_steps,
-                                        env_change_freq=max_total_steps)
+                                        env_change_freq=max_total_steps,
+                                        is_print=True)
 
         obs_0, actions_0, rewards_0, next_obs_0, lengths_0 = task_0_buffer.sample_section(start_idx=0, end_idx=sample_episode_num)
         obs_1, actions_1, rewards_1, next_obs_1, lengths_1 = task_1_buffer.sample_section(start_idx=0, end_idx=sample_episode_num)
@@ -160,7 +164,6 @@ def main():
 
         next_obs_2 = torch.cat([next_obs_0[trajectory_idx, :lengths_0[trajectory_idx], :],
                                 next_obs_1[trajectory_idx, :lengths_1[trajectory_idx], :]], dim=0).unsqueeze(dim=0)
-
 
         obs_2_d, actions_2_d, rewards_2_d, next_obs_2_d = all_to_device(obs_2, actions_2, rewards_2, next_obs_2, device=config.device)
         latent_sample_2, latent_mean_2, latent_logvar_2, output_0, hidden_state = model.encoder(obs=obs_2_d, actions=actions_2_d, rewards=rewards_2_d, lengths=total_length)

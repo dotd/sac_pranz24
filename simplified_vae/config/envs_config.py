@@ -32,7 +32,7 @@ class StationaryCheetahWindvelEnvConfig(EnvConfig):
 
     name: str = 'HalfCheetah-v2'
 
-    max_episode_steps = 100
+    max_episode_steps = 500
 
     low_target_vel: float = 0.
     high_target_vel: float = 3.
@@ -44,7 +44,7 @@ class ToggleCheetahWindvelEnvConfig(EnvConfig):
 
     name: str = 'HalfCheetah-v2'
 
-    max_episode_steps = 1000000
+    max_episode_steps = 500
 
     low_target_vel: float = 0.
     high_target_vel: float = 3.
@@ -56,7 +56,7 @@ class FixedToggleCheetahWindvelEnvConfig(EnvConfig):
 
     name: str = 'HalfCheetah-v2'
 
-    max_episode_steps = 1000000
+    max_episode_steps = 500
 
     low_target_vel: float = 0.
     high_target_vel: float = 3.
@@ -68,7 +68,7 @@ class StationarySwimmerWindvelEnvConfig(EnvConfig):
 
     name: str = 'Swimmer-v3'
 
-    max_episode_steps = 100
+    max_episode_steps = 1000
 
     low_target_vel: float = 0.
     high_target_vel: float = 3.
@@ -80,7 +80,7 @@ class ToggleSwimmerWindvelEnvConfig(EnvConfig):
 
     name: str = 'Swimmer-v2'
 
-    max_episode_steps = 1000000
+    max_episode_steps = 1000
 
     low_target_vel: float = 0.
     high_target_vel: float = 3.
@@ -92,7 +92,7 @@ class FixedToggleSwimmerWindvelEnvConfig(EnvConfig):
 
     name: str = 'Swimmer-v2'
 
-    max_episode_steps = 1000000
+    max_episode_steps = 1000
 
     low_target_vel: float = 0.
     high_target_vel: float = 3.
@@ -104,7 +104,7 @@ class StationaryHopperWindvelEnvConfig(EnvConfig):
 
     name: str = 'Hopper-v3'
 
-    max_episode_steps = 100
+    max_episode_steps = 1000
 
     low_target_vel: float = 0.
     high_target_vel: float = 3.
@@ -116,7 +116,7 @@ class FixedToggleHopperWindvelEnvConfig(EnvConfig):
 
     name: str = 'Hopper-v3'
 
-    max_episode_steps = 1000000
+    max_episode_steps = 1000
 
     low_target_vel: float = 0.
     high_target_vel: float = 3.
@@ -128,7 +128,7 @@ class ToggleHopperWindvelEnvConfig(EnvConfig):
 
     name: str = 'Hopper-v3'
 
-    max_episode_steps = 1000000
+    max_episode_steps = 1000
 
     low_target_vel: float = 0.
     high_target_vel: float = 3.

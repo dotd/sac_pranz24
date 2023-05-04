@@ -43,12 +43,17 @@ class Clusterer:
         labels_0 = self.predict(latent_mean_0_flat)
         labels_1 = self.predict(latent_mean_1_flat)
 
-        for curr_labels in [labels_0, labels_1]:
-            sample_num = len(curr_labels)
-            for i in range(sample_num):
-                curr_sample = latent_mean_h[i]
-                curr_cluster_idx = curr_labels[i]
-                self.online_kmeans_queues[curr_cluster_idx].extend(curr_sample)
+        sample_num = len(labels_0)
+        for i in range(sample_num):
+            curr_sample = latent_mean_0_flat[i]
+            curr_cluster_idx = labels_0[i]
+            self.online_kmeans_queues[curr_cluster_idx].extend(curr_sample) # TODO bug in the online kmeans calculation
+
+        sample_num = len(labels_1)
+        for i in range(sample_num):
+            curr_sample = latent_mean_1_flat[i]
+            curr_cluster_idx = labels_1[i]
+            self.online_kmeans_queues[curr_cluster_idx].extend(curr_sample)
 
         return labels_0, labels_1
 
