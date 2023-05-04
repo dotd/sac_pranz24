@@ -21,35 +21,43 @@ class Clusterer:
         self.clusters: Union[KMeans, MiniBatchKMeans] = None
         self.cluster_counts = np.array(self.clusters_num)
 
-        self.online_queues: List[deque] = [deque(maxlen=self.config.cpd.clusters_queue_size) for _ in range(self.clusters_num)]
+        self.online_kmeans_queues: List[deque] = [deque(maxlen=self.config.cpd.clusters_queue_size) for _ in range(self.clusters_num)]
 
-    def init_clusters(self, latent_mean_h: np.ndarray):
+    def init_clusters(self, latent_mean_0: torch.Tensor,
+                            latent_mean_1: torch.Tensor,
+                            lengths_0: List[int],
+                            lengths_1: List[int]):
 
+        episode_num_0 = len(lengths_0)
+        episode_num_1 = len(lengths_1)
+
+        latent_mean_0_h = latent_mean_0.detach().cpu().numpy()
+        latent_mean_1_h = latent_mean_1.detach().cpu().numpy()
+
+        latent_mean_0_flat = np.concatenate([latent_mean_0_h[i][:lengths_0[i]] for i in range(episode_num_0)], axis=0)
+        latent_mean_1_flat = np.concatenate([latent_mean_1_h[i][:lengths_1[i]] for i in range(episode_num_1)], axis=0)
+
+        latent_mean_h = np.concatenate([latent_mean_0_flat, latent_mean_1_flat], axis=0)
         self.cluster(latent_means=latent_mean_h)
 
-        all_labels = self.predict(latent_means=latent_mean_h)
+        labels_0 = self.predict(latent_mean_0_flat)
+        labels_1 = self.predict(latent_mean_1_flat)
 
-        batch_size, seq_len, hidden_dim = latent_mean_h.shape
-        samples = latent_mean_h.reshape(-1, hidden_dim)
+        for curr_labels in [labels_0, labels_1]:
+            sample_num = len(curr_labels)
+            for i in range(sample_num):
+                curr_sample = latent_mean_h[i]
+                curr_cluster_idx = curr_labels[i]
+                self.online_kmeans_queues[curr_cluster_idx].extend(curr_sample)
 
-        for cluster_idx in range(self.config.cpd.clusters_num):
-            curr_samples = samples[all_labels == cluster_idx, :]
-            self.online_queues[cluster_idx].extend(curr_samples)
-
-        return all_labels
+        return labels_0, labels_1
 
     def cluster(self, latent_means):
 
         if isinstance(latent_means, torch.Tensor):
             latent_means = latent_means.detach().cpu().numpy()
 
-        # size of batch_size X seq_len X latent
-        # General euclidean clustering of all states from all distributions
-        batch_size, seq_len, latent_dim = latent_means.shape
-
-        # reshape to (-1, latent_dim) --> size will be samples X latent_dim
-        data = latent_means.reshape((-1, latent_dim))
-        self.clusters = KMeans(n_clusters=self.clusters_num, random_state=self.rg).fit(data)
+        self.clusters = KMeans(n_clusters=self.clusters_num, random_state=self.rg).fit(latent_means)
 
     def calc_labels(self, samples: Union[np.ndarray, torch.Tensor]):
 
@@ -67,11 +75,8 @@ class Clusterer:
 
         if isinstance(latent_means, torch.Tensor):
             latent_means = latent_means.detach().cpu().numpy()
-        batch_size, seq_len, latent_dim = latent_means.shape
 
-        # reshape to (-1, latent_dim) --> size will be samples X latent_dim
-        data = latent_means.reshape((-1, latent_dim))
-        return self.clusters.predict(data)
+        return self.clusters.predict(latent_means)
 
     def update_clusters(self, new_obs):
         """
@@ -92,12 +97,12 @@ class Clusterer:
 
         curr_label = self.clusters.predict(new_obs.reshape(1,-1)).item()
 
-        if len(self.online_queues[curr_label]) == self.config.cpd.clusters_queue_size:
-            prev_point = self.online_queues[curr_label].popleft()
-            sample_count = len(self.online_queues[curr_label])
+        if len(self.online_kmeans_queues[curr_label]) == self.config.cpd.clusters_queue_size:
+            prev_point = self.online_kmeans_queues[curr_label].popleft()
+            sample_count = len(self.online_kmeans_queues[curr_label])
             self.clusters.cluster_centers_[curr_label] -= (1.0 / sample_count) * (prev_point - self.clusters.cluster_centers_[curr_label])
 
-        self.online_queues[curr_label].append(new_obs)
-        sample_count = len(self.online_queues[curr_label])
+        self.online_kmeans_queues[curr_label].append(new_obs)
+        sample_count = len(self.online_kmeans_queues[curr_label])
         self.clusters.cluster_centers_[curr_label] += (1.0 / sample_count) * (new_obs - self.clusters.cluster_centers_[curr_label])
 

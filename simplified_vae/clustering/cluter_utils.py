@@ -17,3 +17,11 @@ def latent_clustering(latent_mean: np.ndarray,
     return kmeans
 
 
+def latent_clustering_flattened(latent_mean: np.ndarray,
+                                cluster_num: int,
+                                rg: np.random.RandomState):
+
+    kmeans = KMeans(n_clusters=cluster_num, random_state=rg).fit(latent_mean)
+
+    return kmeans
+

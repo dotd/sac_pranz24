@@ -41,7 +41,7 @@ class VAETrainingConfig(BaseModel):
     vae_train_iter = 100000
 
     use_kl_posterior_loss: bool = False
-    use_stationary_trajectories: bool = False
+    use_stationary_trajectories: bool = True
 
     sum_reward_window_size = 100
     eval_freq: int = 50
@@ -56,14 +56,16 @@ class BufferConfig(BaseModel):
     max_episode_num: int
 
 
-class VAETrainBufferConfig(BufferConfig):
-    max_episode_len: int = 100
-    max_episode_num: int = 5000
+class VAETrainBufferConfig(BaseModel):
+
+    max_env_steps: int = 500
+    max_total_steps: int = 200000
 
 
-class VAETestBufferConfig(BufferConfig):
-    max_episode_len: int = 100
-    max_episode_num: int = 50
+class VAETestBufferConfig(BaseModel):
+
+    max_env_steps: int = 500
+    max_total_steps: int = 20000
 
 
 class TrainBufferConfig(BufferConfig):
@@ -120,8 +122,8 @@ class CPDConfig(BaseModel):
     meta_dist_num: int = 2
     dist_epsilon = 0.00001
 
-    max_episode_len: int = 100
-    max_episode_num: int = 1000
+    max_env_steps: int = 500
+    max_total_steps = 20000 # 100000
     clusters_queue_size: int = 10000
     median_window_size = 20
 

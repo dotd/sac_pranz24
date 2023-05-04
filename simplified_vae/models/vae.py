@@ -1,4 +1,5 @@
 import warnings
+from typing import List
 
 import numpy as np
 import torch
@@ -39,12 +40,14 @@ class RNNVAE(nn.Module):
                 actions: torch.Tensor,
                 rewards: torch.Tensor,
                 next_obs: torch.Tensor,
-                hidden_state: torch.Tensor = None):
+                hidden_state: torch.Tensor = None,
+                lengths: List = None):
 
         latent_sample, latent_mean, latent_logvar, output, hidden_state = self.encoder(obs=obs,
                                                                                        actions=actions,
                                                                                        rewards=rewards,
-                                                                                       hidden_state=hidden_state)
+                                                                                       hidden_state=hidden_state,
+                                                                                       lengths=lengths)
 
         next_obs_preds = self.state_decoder(latent_sample, obs, actions)
         rewards_pred = self.reward_decoder(latent_sample, obs, actions, next_obs)

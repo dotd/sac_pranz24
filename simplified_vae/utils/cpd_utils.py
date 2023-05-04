@@ -22,7 +22,7 @@ class CPD:
 
         self.window_queue = deque(maxlen=window_length)
 
-        self.dist_queue_len = self.cpd_config.max_episode_len * self.cpd_config.max_episode_num // 2 - 1
+        self.dist_queue_len = self.cpd_config.max_total_steps // 2 - 1
 
         self.dists: List[MarkovDistribution] = [MarkovDistribution(state_num=self.cpd_config.clusters_num, window_length=self.dist_queue_len),
                                                 MarkovDistribution(state_num=self.cpd_config.clusters_num, window_length=self.dist_queue_len)]

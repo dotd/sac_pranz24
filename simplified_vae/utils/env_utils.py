@@ -26,6 +26,7 @@ def sample_stationary_trajectory(env: Union[Env, StationaryCheetahWindVelWrapper
     # init vars
     all_obs, all_actions, all_rewards, all_next_obs, all_dones = [], [], [], [], []
     steps = 0
+
     while True:
 
         # use the most recent ob to decide what to do
@@ -53,11 +54,11 @@ def sample_stationary_trajectory(env: Union[Env, StationaryCheetahWindVelWrapper
         if rollout_done:
             break
 
-    return np.asarray(all_obs), \
-           np.asarray(all_actions), \
-           np.asarray(all_rewards)[:, np.newaxis], \
-           np.asarray(all_next_obs), \
-           np.asarray(all_dones)[:, np.newaxis]
+    return np.asarray(all_obs, dtype=np.float32), \
+           np.asarray(all_actions, dtype=np.float32), \
+           np.asarray(all_rewards, dtype=np.float32)[:, np.newaxis], \
+           np.asarray(all_next_obs, dtype=np.float32), \
+           np.asarray(all_dones, dtype=np.float32)[:, np.newaxis]
 
 
 def sample_non_stationary_trajectory(env: Union[Env, StationaryCheetahWindVelWrapper], max_env_steps: int, rg: object) -> object:
@@ -172,26 +173,31 @@ def make_fixed_toggle_env(config: BaseConfig):
     return env
 
 
-def collect_stationary_trajectories(env: Union[gym.Env,
-                                               StationaryCheetahWindVelWrapper],
+def collect_stationary_trajectories(env: Union[gym.Env, StationaryCheetahWindVelWrapper],
                                     buffer: Buffer,
-                                    episode_num: int,
-                                    episode_len: int,
+                                    max_env_steps: int,
+                                    max_total_steps: int,
                                     env_change_freq: int,
-                                    agent: Optional[SAC] = None):
+                                    agent: Optional[SAC] = None,
+                                    is_print: bool = False):
 
-    for trajectory_idx in range(episode_num):
+    curr_total_steps = 0
+    trajectory_idx = 0
+    task_counter = 1
 
-        if trajectory_idx % env_change_freq == 0 and trajectory_idx > 0:
+    while curr_total_steps < max_total_steps:
+
+        if curr_total_steps >= env_change_freq * task_counter and is_print:
             env.set_task(task=None)
             curr_task = env.get_task()
             print(f'Task Changed to {curr_task}')
+            task_counter += 1
 
-        if trajectory_idx % 100 == 0:
-            print(f'Train: Episode idx {trajectory_idx}/{episode_num}, task - {env.get_task()}')
+        if trajectory_idx % 100 == 0 and is_print:
+            print(f'Collect step {curr_total_steps}/{max_total_steps}, task - {env.get_task()}')
 
         obs, actions, rewards, next_obs, dones = sample_stationary_trajectory(env=env,
-                                                                              max_env_steps=episode_len,
+                                                                              max_env_steps=max_env_steps,
                                                                               agent=agent)
 
         buffer.insert(obs=obs,
@@ -200,16 +206,21 @@ def collect_stationary_trajectories(env: Union[gym.Env,
                       next_obs=next_obs,
                       dones=dones)
 
+        trajectory_idx += 1
+        curr_total_steps += len(obs)
+
 
 def collect_non_stationary_trajectories(env: Union[gym.Env, StationaryCheetahWindVelWrapper],
                                         buffer: Buffer,
+                                        max_env_steps: int,
                                         episode_num: int,
                                         episode_len: int,
-                                        rg: np.random.RandomState):
+                                        rg: np.random.RandomState,
+                                        is_print: bool = False):
 
     for trajectory_idx in range(episode_num):
 
-        if trajectory_idx % 100 == 0 and trajectory_idx > 0:
+        if trajectory_idx % 100 == 0 and trajectory_idx > 0 and is_print:
             print(f'Train: Episode idx {trajectory_idx}/{episode_num}')
 
         obs, actions, rewards, next_obs, dones = sample_non_stationary_trajectory(env=env,

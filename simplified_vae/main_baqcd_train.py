@@ -77,25 +77,25 @@ def main():
     ### Swimmer WindVel RNN-VAE###
     #######################
 
-    model_type = 'RNNVAE'
-    checkpoint_path = 'runs/RNNVAE_Swimmer-v3_2023-05-01_14-24-34/model_best.pth.tar'
-    config = BaseConfig(env=FixedToggleSwimmerWindvelEnvConfig(),
-                        model=ModelConfig(type=model_type, checkpoint_path=checkpoint_path),
-                        agent=AgentConfig(start_steps=-1))
-
-    stationary_config = BaseConfig(env=StationarySwimmerWindvelEnvConfig(),
-                                   model=ModelConfig(type=model_type, checkpoint_path=checkpoint_path),
-                                   agent=AgentConfig(start_steps=-1))
+    # model_type = 'RNNVAE'
+    # checkpoint_path = 'runs/RNNVAE_Swimmer-v3_2023-05-01_14-24-34/model_best.pth.tar'
+    # config = BaseConfig(env=FixedToggleSwimmerWindvelEnvConfig(),
+    #                     model=ModelConfig(type=model_type, checkpoint_path=checkpoint_path),
+    #                     agent=AgentConfig(start_steps=-1))
+    #
+    # stationary_config = BaseConfig(env=StationarySwimmerWindvelEnvConfig(),
+    #                                model=ModelConfig(type=model_type, checkpoint_path=checkpoint_path),
+    #                                agent=AgentConfig(start_steps=-1))
     ### Hopper WindVel ###
     #######################
 
-    # config = BaseConfig(env=FixedToggleHopperWindvelEnvConfig(),
-    #                     model=ModelConfig(checkpoint_path='runs/old/VAE_Hopper-v3_2023-04-24_13-37-49/model_best.pth.tar'),
-    #                     agent=AgentConfig(start_steps=-1))
-    #
-    # stationary_config = BaseConfig(env=StationaryHopperWindvelEnvConfig(),
-    #                                model=ModelConfig(checkpoint_path='runs/old/VAE_Hopper-v3_2023-04-24_13-37-49/model_best.pth.tar'),
-    #                                agent=AgentConfig(start_steps=-1))
+    config = BaseConfig(env=FixedToggleHopperWindvelEnvConfig(),
+                        model=ModelConfig(checkpoint_path='runs/RNNVAE_Hopper-v3_2023-05-02_15-58-56/model_best.pth.tar'),
+                        agent=AgentConfig(start_steps=-1))
+
+    stationary_config = BaseConfig(env=StationaryHopperWindvelEnvConfig(),
+                                   model=ModelConfig(checkpoint_path='runs/RNNVAE_Hopper-v3_2023-05-02_15-58-56/model_best.pth.tar'),
+                                   agent=AgentConfig(start_steps=-1))
 
     ### ABS Env ###
     ###############
@@ -111,8 +111,8 @@ def main():
     logger = SummaryWriter(f'runs/BAQCD_{config.model.type}_{config.env.name}_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}')
     set_seed(config.seed)
 
-    wandb.init(project="cusum_exps",
-               config=config.__dict__)
+    # wandb.init(project="cusum_exps",
+    #            config=config.__dict__)
 
     # Init Env
     env = env_factory(config=config, logger=logger)
@@ -126,7 +126,7 @@ def main():
 
     poc_trainer.init_clusters()
     poc_trainer.train_model()
-    wandb.finish()
+    # wandb.finish()
 
 if __name__ == '__main__':
     main()

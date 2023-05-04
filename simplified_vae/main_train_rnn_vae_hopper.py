@@ -6,9 +6,7 @@ from simplified_vae.utils.env_utils import set_seed
 from simplified_vae.utils.vae_trainer import VAETrainer
 from simplified_vae.env.environment_factory import env_factory
 from simplified_vae.config.config import BaseConfig
-from simplified_vae.config.envs_config import StationaryCheetahWindvelEnvConfig, \
-                                              StationaryABSEnvConfig, \
-                                              StationaryHopperWindvelEnvConfig
+from simplified_vae.config.envs_config import StationaryHopperWindvelEnvConfig
 
 
 def main():

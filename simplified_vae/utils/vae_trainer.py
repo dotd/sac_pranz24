@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Union, List
 
 import gym
 import numpy as np
@@ -47,13 +47,11 @@ class VAETrainer:
 
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=config.training.lr)
 
-        self.train_buffer: Buffer = Buffer(max_episode_len=config.vae_train_buffer.max_episode_len,
-                                           max_episode_num=config.vae_train_buffer.max_episode_num,
+        self.train_buffer: Buffer = Buffer(max_total_steps=self.config.vae_train_buffer.max_total_steps,
                                            obs_dim=self.obs_dim,
                                            action_dim=self.action_dim)
 
-        self.test_buffer: Buffer = Buffer(max_episode_len=config.vae_test_buffer.max_episode_len,
-                                          max_episode_num=config.vae_test_buffer.max_episode_num,
+        self.test_buffer: Buffer = Buffer(max_total_steps=self.config.vae_test_buffer.max_total_steps,
                                           obs_dim=self.obs_dim,
                                           action_dim=self.action_dim)
         self.min_loss = np.Inf
@@ -65,22 +63,25 @@ class VAETrainer:
         if self.config.training.use_stationary_trajectories:
             collect_stationary_trajectories(env=self.env,
                                             buffer=self.train_buffer,
-                                            episode_num=self.config.vae_train_buffer.max_episode_num,
-                                            episode_len=self.config.vae_train_buffer.max_episode_len,
-                                            env_change_freq=self.config.train_buffer.max_episode_num // 10)
+                                            max_env_steps=self.config.vae_train_buffer.max_env_steps,
+                                            max_total_steps=self.config.vae_train_buffer.max_total_steps,
+                                            env_change_freq=self.config.vae_train_buffer.max_total_steps // 10,
+                                            is_print=True)
         else:
             collect_non_stationary_trajectories(env=self.env,
                                                 buffer=self.train_buffer,
-                                                episode_num=self.config.vae_train_buffer.max_episode_num,
-                                                episode_len=self.config.vae_train_buffer.max_episode_len,
-                                                rg=self.rg)
+                                                max_env_steps=self.config.vae_train_buffer.max_env_steps, # TODO fix this function
+                                                max_total_steps=self.config.vae_train_buffer.max_episode_num,
+                                                env_change_freq=self.config.vae_train_buffer.max_episode_len,
+                                                rg=self.rg,
+                                                is_print=True)
 
         for iter_idx in range(self.config.training.vae_train_iter):
 
-            obs, actions, rewards, next_obs = self.train_buffer.sample_batch(batch_size=self.config.training.batch_size)
+            obs, actions, rewards, next_obs, lengths = self.train_buffer.sample_batch(batch_size=self.config.training.batch_size)
             state_reconstruction_loss, \
             reward_reconstruction_loss, \
-            kl_loss = self.train_iter(obs=obs, actions=actions, rewards=rewards, next_obs=next_obs)
+            kl_loss = self.train_iter(obs=obs, actions=actions, rewards=rewards, next_obs=next_obs, lengths=lengths)
 
             self.logger.add_scalar(tag='train/state_reconstruction_loss', scalar_value=state_reconstruction_loss, global_step=iter_idx)
             self.logger.add_scalar(tag='train/reward_reconstruction_loss', scalar_value=reward_reconstruction_loss, global_step=iter_idx)
@@ -116,21 +117,23 @@ class VAETrainer:
 
                     collect_stationary_trajectories(env=self.env,
                                                     buffer=self.test_buffer,
-                                                    episode_num=self.config.vae_test_buffer.max_episode_num,
-                                                    episode_len=self.config.vae_test_buffer.max_episode_len,
-                                                    env_change_freq=1)
+                                                    max_env_steps=self.config.vae_test_buffer.max_env_steps,
+                                                    max_total_steps=self.config.vae_test_buffer.max_total_steps,
+                                                    env_change_freq=1,
+                                                    is_print=False)
                 else:
                     collect_non_stationary_trajectories(env=self.env,
                                                         buffer=self.test_buffer,
-                                                        episode_num=self.config.vae_test_buffer.max_episode_num,
+                                                        episode_num=self.config.vae_test_buffer.max_episode_num, # TODO fix
                                                         episode_len=self.config.vae_test_buffer.max_episode_len,
-                                                        rg=self.rg)
+                                                        rg=self.rg,
+                                                        is_print=False)
 
-                obs, actions, rewards, next_obs = self.test_buffer.sample_batch(batch_size=self.config.test_buffer.max_episode_num)
+                obs, actions, rewards, next_obs, lengths = self.test_buffer.sample_batch(batch_size=self.config.test_buffer.max_episode_num)
 
                 state_reconstruction_loss, \
                 reward_reconstruction_loss, \
-                kl_loss = self.test_iter(obs=obs, actions=actions, rewards=rewards, next_obs=next_obs)
+                kl_loss = self.test_iter(obs=obs, actions=actions, rewards=rewards, next_obs=next_obs, lengths=lengths)
 
                 print(f'Test: curr_iter = {iter_idx}, '
                       f'state_loss = {state_reconstruction_loss}, '
@@ -144,7 +147,8 @@ class VAETrainer:
     def train_iter(self, obs: torch.Tensor,
                          actions: torch.Tensor,
                          rewards: torch.Tensor,
-                         next_obs: torch.Tensor):
+                         next_obs: torch.Tensor,
+                         lengths: List):
 
         self.model.train()
 
@@ -154,12 +158,13 @@ class VAETrainer:
         next_obs_d = next_obs.to(self.config.device)
 
         if self.config.model.type == 'RNNVAE':
-            next_obs_preds, rewards_pred, latent_mean, latent_logvar, _, _ = self.model(obs_d, actions_d, rewards_d, next_obs_d)
+            next_obs_preds, rewards_pred, latent_mean, latent_logvar, _, _ = self.model(obs=obs_d, actions=actions_d, rewards=rewards_d, next_obs=next_obs_d, lengths=lengths)
         elif self.config.model.type == 'VAE':
-            next_obs_preds, rewards_pred, latent_mean, latent_logvar = self.model(obs_d, actions_d, rewards_d, next_obs_d)
+            next_obs_preds, rewards_pred, latent_mean, latent_logvar = self.model(obs=obs_d, actions=actions_d, rewards=rewards_d, next_obs=next_obs_d)
         else:
             raise NotImplementedError
 
+        # TODO next_obs_preds outputs for the padded parts should be zero
         state_reconstruction_loss = compute_state_reconstruction_loss(next_obs_preds, next_obs_d)
         reward_reconstruction_loss = compute_reward_reconstruction_loss(rewards_pred, rewards_d)
 
@@ -181,7 +186,8 @@ class VAETrainer:
     def test_iter(self, obs: torch.Tensor,
                         actions: torch.Tensor,
                         rewards: torch.Tensor,
-                        next_obs: torch.Tensor):
+                        next_obs: torch.Tensor,
+                        lengths: List):
 
         self.model.eval()
 
@@ -193,9 +199,9 @@ class VAETrainer:
             next_obs_d = next_obs.to(self.config.device)
 
             if self.config.model.type == 'RNNVAE':
-                next_obs_preds, rewards_pred, latent_mean, latent_logvar, _, _ = self.model(obs_d, actions_d, rewards_d, next_obs_d)
+                next_obs_preds, rewards_pred, latent_mean, latent_logvar, _, _ = self.model(obs=obs_d, actions=actions_d, rewards=rewards_d, next_obs=next_obs_d, lengths=lengths)
             elif self.config.model.type == 'VAE':
-                next_obs_preds, rewards_pred, latent_mean, latent_logvar = self.model(obs_d, actions_d, rewards_d, next_obs_d)
+                next_obs_preds, rewards_pred, latent_mean, latent_logvar = self.model(obs=obs_d, actions=actions_d, rewards=rewards_d, next_obs=next_obs_d)
             else:
                 raise NotImplementedError
 

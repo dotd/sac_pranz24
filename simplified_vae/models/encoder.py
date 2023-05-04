@@ -1,3 +1,5 @@
+from typing import List
+
 import numpy as np
 
 import torch
@@ -142,7 +144,8 @@ class RNNEncoder(nn.Module):
     def forward(self, obs: torch.Tensor,
                       actions: torch.Tensor,
                       rewards: torch.Tensor,
-                      hidden_state: torch.Tensor = None):
+                      hidden_state: torch.Tensor = None,
+                      lengths: torch.Tensor = 0):
 
         """
         Actions, states, rewards should be given in form [sequence_len * batch_size * dim].
@@ -171,7 +174,9 @@ class RNNEncoder(nn.Module):
         reward_embed = self.activation(self.reward_encoder(rewards))
         h = torch.cat((actions_embed, obs_embed, reward_embed), dim=len(obs.shape)-1)
 
-        output, hidden_state = self.gru(h, hidden_state)
+        h_pack = nn.utils.rnn.pack_padded_sequence(h, lengths=lengths, batch_first=True)
+        output, hidden_state = self.gru(h_pack, hidden_state)
+        output, input_sizes = torch.nn.utils.rnn.pad_packed_sequence(output, batch_first=True)
         gru_h = output.clone()
 
         # outputs
