@@ -21,12 +21,22 @@ def run_cusum(curr_transitions, markov_dist_0, markov_dist_1):
     sample_len = len(curr_transitions)
     done = False
 
+    curr_total_count = np.sum(markov_dist_0.transition_mat)
+    next_total_count = np.sum(markov_dist_1.transition_mat)
+
     for k in range(sample_len):
 
         curr_sample = curr_transitions[k, :]
 
         p_0 = markov_dist_0.pdf(curr_sample)
         p_1 = markov_dist_1.pdf(curr_sample)
+
+        curr_prior = markov_dist_0.transition_mat[curr_sample[0], curr_sample[1]] / curr_total_count
+        next_prior = markov_dist_1.transition_mat[curr_sample[0], curr_sample[1]] / next_total_count
+
+        if (p_0 <= 0.1 and p_1 <= 0.1) or \
+           (curr_prior < 0.01 and next_prior < 0.01):
+            continue
 
         s_k.append(math.log(p_1 / p_0))
         S_k.append(sum(s_k))
@@ -73,7 +83,9 @@ def main():
     task_1_buffer = Buffer(max_total_steps=max_total_steps,
                            obs_dim=obs_dim, action_dim=action_dim)
 
-    env.set_task(task=None)
+    tasks = [np.array([2.16308017, 10.30782]), np.array([0.163, 19.3])]
+
+    env.set_task(task=tasks[0])
     task_0 = env.get_task()
     collect_stationary_trajectories(env=env,
                                     buffer=task_0_buffer,
@@ -83,7 +95,7 @@ def main():
                                     is_print=True)
 
     # collect episode from Task_1
-    env.set_task(task=None)
+    env.set_task(task=tasks[1])
     task_1 = env.get_task()
     collect_stationary_trajectories(env=env,
                                     buffer=task_1_buffer,

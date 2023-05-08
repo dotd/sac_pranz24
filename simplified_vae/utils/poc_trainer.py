@@ -347,7 +347,7 @@ class POCTrainer:
 
         self.logger.add_scalar(f'reward_{self.curr_agent_idx}/train', curr_episode_reward, episode_idx)
         print(f'Episode Idx = {episode_idx}, '
-              f'Total Steps = {self.total_agent_steps[self.curr_agent_idx]}, '
+              f'Total Steps = {self.total_agent_steps}, '
               f'Episode Steps = {episode_steps}, Reward = {curr_episode_reward}')
 
     def test_iter(self, obs: torch.Tensor,

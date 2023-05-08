@@ -25,6 +25,7 @@ class FixedToggleHopperWindVelWrapper(Wrapper):
 
         self.task_idx: int = 0
         self.tasks = [np.array([0.16308017, 19.30782]), np.array([1.8980728, 5.800347])]
+        # self.tasks = [np.array([0.16308017, 19.30782]), np.array([1.1980728, 5.800347])]
 
         self.increments_counter = 0
         self.time_increments = [3385, 6726, 9980, 13209, 16480, 19731, 23083, 26318, 29582, 32869, 36306, 39575, 42807,

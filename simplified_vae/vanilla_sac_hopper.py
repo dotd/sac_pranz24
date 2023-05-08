@@ -29,8 +29,9 @@ def run_agent_and_environment():
 
     # Init Env
     env = env_factory(config=config, logger=logger)
-    # env.set_task(task=np.array([1.8980728, 5.800347])) # SAC_Hopper-v3_2023-05-07_16-10-41
-    env.set_task(task=np.array([0.16308017, 19.30782])) # SAC_Hopper-v3_2023-05-08_08-51-56
+    # env.set_task(task=np.array([1.8980728, 5.800347]))
+    # env.set_task(task=np.array([0.16308017, 19.30782])) # Good example - solved in 250K steps
+    env.set_task(task=np.array([2.16308017, 10.30782])) #
     # Agent
     agent = SAC(config=config,
                 num_inputs=env.obs_dim,
@@ -86,7 +87,7 @@ def run_agent_and_environment():
         if total_steps > config.agent.num_steps:
             break
 
-        logger.add_scalar('reward/train', episode_reward, i_episode)
+        logger.add_scalar('reward/train', episode_reward, total_steps)
         print("Episode: {}, total numsteps: {}, episode steps: {}, reward: {}".format(i_episode, total_steps,
                                                                                       episode_steps,
                                                                                       round(episode_reward, 2)))
