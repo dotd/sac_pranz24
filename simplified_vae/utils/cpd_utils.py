@@ -35,7 +35,7 @@ class CPD:
         self.dists[curr_agent_idx].update_transition(curr_transition=curr_transition)
 
         if len(self.window_queue) == self.window_length:
-           n_c, g_k = self.windowed_cusum(curr_agent_idx)
+           n_c, g_k, medians_k = self.windowed_cusum(curr_agent_idx)
         else:
             n_c, g_k = None, None
 
@@ -53,12 +53,22 @@ class CPD:
         next_agent_idx = int(not(curr_agent_idx))
         done = False
 
+        curr_total_count = np.sum(self.dists[curr_agent_idx].transition_mat)
+        next_total_count = np.sum(self.dists[next_agent_idx].transition_mat)
+
         for k in range(len(self.window_queue)):
 
             curr_sample = self.window_queue[k]
 
             curr_p = max(self.dists[curr_agent_idx].pdf(curr_sample), self.cpd_config.dist_epsilon)
             next_p = max(self.dists[next_agent_idx].pdf(curr_sample), self.cpd_config.dist_epsilon)
+
+            curr_prior = self.dists[curr_agent_idx].transition_mat[curr_sample] / curr_total_count
+            next_prior = self.dists[next_agent_idx].transition_mat[curr_sample] / next_total_count
+
+            if (curr_p <= self.cpd_config.transition_cusum_eps and next_p <= self.cpd_config.transition_cusum_eps) or \
+               (curr_prior < self.config.cpd.prior_cusum_eps and next_prior < self.config.cpd.prior_cusum_eps):
+                continue
 
             s_k.append(math.log(next_p / curr_p))
             S_k.append(sum(s_k))
@@ -75,6 +85,6 @@ class CPD:
                 done = True
                 # break
 
-        return n_c, g_k
+        return n_c, g_k, medians_k
 
 

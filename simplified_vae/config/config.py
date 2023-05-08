@@ -43,9 +43,9 @@ class VAETrainingConfig(BaseModel):
     use_kl_posterior_loss: bool = False
     use_stationary_trajectories: bool = True
 
-    sum_reward_window_size = 100
+    sum_reward_window_size = 10
     eval_freq: int = 50
-    print_train_loss_freq = 100
+    print_train_loss_freq = 10
 
     save_freq: int = 50
 
@@ -117,7 +117,7 @@ class ModelConfig(BaseModel):
 class CPDConfig(BaseModel):
 
     alpha_val: float = 0.5
-    clusters_num = 10
+    clusters_num = 5
     cusum_thresh = 10
     meta_dist_num: int = 2
     dist_epsilon = 0.00001
@@ -133,6 +133,8 @@ class CPDConfig(BaseModel):
     freq_multiplier = 1
     poisson_dist: bool = False
 
+    transition_cusum_eps: float = 0.1
+    prior_cusum_eps: float = 0.01
 
 class BaseConfig(BaseModel):
 

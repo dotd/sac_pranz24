@@ -21,6 +21,7 @@ class StationaryHopperWindVelWrapper(Wrapper):
         self.config: BaseConfig = config
         self.logger = logger
         self.action_dim: np.ndarray = self.env.action_space.shape[0]
+        self.obs_dim: np.ndarray = self.env.observation_space.shape[0]
 
         self.default_target_vel: float = (config.env.high_target_vel + config.env.low_target_vel) / 2
         self.default_wind_frc: float = (config.env.high_wind_frc + config.env.low_wind_frc) / 2

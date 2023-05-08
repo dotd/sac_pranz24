@@ -45,13 +45,13 @@ class Clusterer:
 
         sample_num = len(labels_0)
         for i in range(sample_num):
-            curr_sample = latent_mean_0_flat[i]
+            curr_sample = latent_mean_0_flat[np.newaxis, i]
             curr_cluster_idx = labels_0[i]
             self.online_kmeans_queues[curr_cluster_idx].extend(curr_sample) # TODO bug in the online kmeans calculation
 
         sample_num = len(labels_1)
         for i in range(sample_num):
-            curr_sample = latent_mean_1_flat[i]
+            curr_sample = latent_mean_1_flat[np.newaxis, i]
             curr_cluster_idx = labels_1[i]
             self.online_kmeans_queues[curr_cluster_idx].extend(curr_sample)
 
@@ -104,10 +104,14 @@ class Clusterer:
 
         if len(self.online_kmeans_queues[curr_label]) == self.config.cpd.clusters_queue_size:
             prev_point = self.online_kmeans_queues[curr_label].popleft()
+
+            if len(prev_point.shape) == 2:
+                prev_point = np.squeeze(prev_point)
+
             sample_count = len(self.online_kmeans_queues[curr_label])
             self.clusters.cluster_centers_[curr_label] -= (1.0 / sample_count) * (prev_point - self.clusters.cluster_centers_[curr_label])
 
-        self.online_kmeans_queues[curr_label].append(new_obs)
+        self.online_kmeans_queues[curr_label].append(new_obs[np.newaxis, :])
         sample_count = len(self.online_kmeans_queues[curr_label])
         self.clusters.cluster_centers_[curr_label] += (1.0 / sample_count) * (new_obs - self.clusters.cluster_centers_[curr_label])
 

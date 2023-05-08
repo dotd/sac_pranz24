@@ -69,6 +69,10 @@ class POCTrainer:
 
         self.total_agent_steps: List = [0,0]
         self.total_agent_updates: List = [0, 0]
+
+        self.avg_reward_windows = [deque(maxlen=self.config.training.sum_reward_window_size),
+                                   deque(maxlen=self.config.training.sum_reward_window_size)]
+
         self.total_steps = 0
         self.cpd_detect_counter: int = 0
         self.curr_agent_idx = 0
@@ -139,16 +143,13 @@ class POCTrainer:
 
         hidden_state = None
 
-        sum_reward_windows = [deque(maxlen=self.config.training.sum_reward_window_size),
-                              deque(maxlen=self.config.training.sum_reward_window_size)]
-
         self.env.set_task(self.env.tasks[0])
 
-        episodes_lengths = []
+        episodes_lengths = [[], []]
 
         for episode_idx in itertools.count(1):
 
-            curr_episode_reward = 0
+            curr_episode_total_reward = 0
             curr_episode_steps = 0
             done = False
             prev_label = None
@@ -185,23 +186,20 @@ class POCTrainer:
 
                 obs = next_obs
                 prev_label = curr_label
-                curr_episode_reward += reward
+                curr_episode_total_reward += reward
                 curr_episode_steps += 1
 
                 self.total_steps += 1
                 self.total_agent_steps[self.curr_agent_idx] += 1
-                sum_reward_windows[self.curr_agent_idx].append(reward)
-                self.log_running_avg_reward(sum_reward_windows)
 
-                # wandb.log({f'steps_agent_{curr_agent_idx}': total_steps[curr_agent_idx]}, step=total_steps[curr_agent_idx])
-                # wandb.log({'episode_steps': episode_steps}, step=episode_steps)
+                if done:
+                    self.log_reward(episode_idx=episode_idx,
+                                    episode_steps=curr_episode_steps,
+                                    curr_episode_reward=curr_episode_total_reward)
+                    episodes_lengths[self.curr_agent_idx].append(curr_episode_steps)
 
             if self.total_agent_steps[self.curr_agent_idx] > self.config.agent.num_steps:
                 break
-
-            if done:
-                # print(f'Finished Episode {episode_idx} with {curr_episode_steps} steps, Total Steps = {self.total_steps}')
-                episodes_lengths.append(curr_episode_steps)
 
 
 
@@ -329,6 +327,15 @@ class POCTrainer:
         curr_label = self.clusterer.predict(curr_latent_mean.reshape(1,-1))
 
         if episode_steps > 0:
+
+            curr_sample = [prev_label.item(), curr_label.item()]
+            next_agent_idx = int(not curr_agent_idx)
+            curr_p = self.cpd.dists[curr_agent_idx].pdf(curr_sample)
+            next_p = self.cpd.dists[next_agent_idx].pdf(curr_sample)
+
+            if next_p > curr_p:
+                a = 1
+
             n_c, g_k = self.cpd.update_transition(curr_transition=(prev_label.item(), curr_label.item()),
                                                   curr_agent_idx=curr_agent_idx)
         else:
@@ -336,15 +343,12 @@ class POCTrainer:
 
         return hidden_state, curr_label, n_c, g_k
 
-    def log_running_avg_reward(self, sum_reward_windows):
+    def log_reward(self, episode_idx, episode_steps, curr_episode_reward):
 
-        if self.total_agent_steps[self.curr_agent_idx] > self.config.training.sum_reward_window_size:
-            sum_reward = sum([curr for curr in sum_reward_windows[self.curr_agent_idx]])
-            self.logger.add_scalar(f'reward_{self.curr_agent_idx}/train', sum_reward, self.total_agent_steps[self.curr_agent_idx])
-            # wandb.log({f'reward_{curr_agent_idx}/train': sum_reward}, step=total_steps[curr_agent_idx])
-
-            if self.total_agent_steps[self.curr_agent_idx] % self.config.training.print_train_loss_freq == 0:
-                print(f'Curr Idx = {self.total_agent_steps}, Sum Reward = {sum_reward}')
+        self.logger.add_scalar(f'reward_{self.curr_agent_idx}/train', curr_episode_reward, episode_idx)
+        print(f'Episode Idx = {episode_idx}, '
+              f'Total Steps = {self.total_agent_steps[self.curr_agent_idx]}, '
+              f'Episode Steps = {episode_steps}, Reward = {curr_episode_reward}')
 
     def test_iter(self, obs: torch.Tensor,
                         actions: torch.Tensor,
