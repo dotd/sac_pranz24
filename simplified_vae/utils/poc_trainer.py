@@ -141,9 +141,10 @@ class POCTrainer:
 
     def train_model(self):
 
-        hidden_state = None
+        print(f'Writing Output to : {self.logger.log_dir}')
 
-        self.env.set_task(self.env.tasks[0])
+        self.curr_agent_idx = 0
+        self.env.task_idx = self.curr_agent_idx
 
         episodes_lengths = [[], []]
 
@@ -153,6 +154,7 @@ class POCTrainer:
             curr_episode_steps = 0
             done = False
             prev_label = None
+            hidden_state = None
 
             obs = self.env.reset()
 
@@ -345,10 +347,11 @@ class POCTrainer:
 
     def log_reward(self, episode_idx, episode_steps, curr_episode_reward):
 
-        self.logger.add_scalar(f'reward_{self.curr_agent_idx}/train', curr_episode_reward, episode_idx)
+        self.logger.add_scalar(f'reward_{self.curr_agent_idx}/train', curr_episode_reward, self.total_agent_steps[self.curr_agent_idx])
         print(f'Episode Idx = {episode_idx}, '
-              f'Total Steps = {self.total_agent_steps}, '
-              f'Episode Steps = {episode_steps}, Reward = {curr_episode_reward}')
+              f'Total Steps = {self.total_agent_steps}, {self.total_steps} '
+              f'Episode Steps = {episode_steps}, Reward = {curr_episode_reward} '
+              f'CPD Window Size = {len(self.cpd.window_queue)}')
 
     def test_iter(self, obs: torch.Tensor,
                         actions: torch.Tensor,

@@ -25,6 +25,7 @@ class FixedToggleHopperWindVelWrapper(Wrapper):
 
         self.task_idx: int = 0
         self.tasks = [np.array([0.16308017, 19.30782]), np.array([1.8980728, 5.800347])]
+
         # self.tasks = [np.array([0.16308017, 19.30782]), np.array([1.1980728, 5.800347])]
 
         self.increments_counter = 0
@@ -65,20 +66,17 @@ class FixedToggleHopperWindVelWrapper(Wrapper):
 
     @property
     def current_task(self):
-        return self.task
+        return self.tasks[self.task_idx]
 
     def get_task(self):
-        return self.task
+        return self.tasks[self.task_idx]
 
     def get_default_task(self):
         return np.asarray([self.default_target_vel, self.default_wind_frc])
 
     def set_task(self, task):
 
-        if task is None:
-            raise NotImplemented
-
-        self.task = task
+        raise NotImplementedError
 
     def step(self, action):
 
@@ -87,15 +85,14 @@ class FixedToggleHopperWindVelWrapper(Wrapper):
             self.increments_counter += 1
             self.next_change = self.time_increments[self.increments_counter]
             self.task_idx = int(not self.task_idx)
-            self.set_task(task=self.tasks[self.task_idx])
 
             print(f'CHANGED TO TASK {self.current_task} AT STEP {self.counter}!')
 
-            self.logger.add_scalar(tag='env/target_velocity', scalar_value=self.task[0], global_step=self.counter)
-            self.logger.add_scalar(tag='env/wind_friction', scalar_value=self.task[1], global_step=self.counter)
+            self.logger.add_scalar(tag='env/target_velocity', scalar_value=self.tasks[self.task_idx][0], global_step=self.counter)
+            self.logger.add_scalar(tag='env/wind_friction', scalar_value=self.tasks[self.task_idx][1], global_step=self.counter)
 
-        curr_target_vel = self.task[0]
-        curr_wind_frec = self.task[1]
+        curr_target_vel = self.tasks[self.task_idx][0]
+        curr_wind_frec = self.tasks[self.task_idx][1]
 
         pos_before = self.unwrapped.sim.data.qpos[0]
         force = [0.] * 5 + [curr_wind_frec]
@@ -105,7 +102,7 @@ class FixedToggleHopperWindVelWrapper(Wrapper):
 
         next_obs, reward, done, info = self.env.step(action)
 
-        info['task'] = self.task
+        info['task'] = self.tasks[self.task_idx]
 
         pos_after = self.unwrapped.sim.data.qpos[0]
         forward_vel = (pos_after - pos_before) / self.unwrapped.dt

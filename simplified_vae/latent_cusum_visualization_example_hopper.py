@@ -34,8 +34,11 @@ def run_cusum(curr_transitions, markov_dist_0, markov_dist_1):
         curr_prior = markov_dist_0.transition_mat[curr_sample[0], curr_sample[1]] / curr_total_count
         next_prior = markov_dist_1.transition_mat[curr_sample[0], curr_sample[1]] / next_total_count
 
-        if (p_0 <= 0.1 and p_1 <= 0.1) or \
-           (curr_prior < 0.01 and next_prior < 0.01):
+        p_0 *= curr_prior
+        p_1 *= next_prior
+
+        if (curr_prior <= 0.1 and next_prior <= 0.1):
+            g_k.append(g_k[-1])# Pad to keep idx correct
             continue
 
         s_k.append(math.log(p_1 / p_0))
@@ -70,7 +73,7 @@ def main():
     max_episode_len = 500
     max_total_steps = 20000
     sample_episode_num = 100
-    clusters_num = 10
+    clusters_num = 5
 
     model, epoch, loss = init_model(config=config,
                                     obs_dim=obs_dim,
@@ -83,7 +86,7 @@ def main():
     task_1_buffer = Buffer(max_total_steps=max_total_steps,
                            obs_dim=obs_dim, action_dim=action_dim)
 
-    tasks = [np.array([2.16308017, 10.30782]), np.array([0.163, 19.3])]
+    tasks = [np.array([0.16308017, 19.30782]), np.array([1.1980728, 5.800347])]
 
     env.set_task(task=tasks[0])
     task_0 = env.get_task()

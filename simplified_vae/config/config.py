@@ -118,7 +118,7 @@ class CPDConfig(BaseModel):
 
     alpha_val: float = 0.5
     clusters_num = 5
-    cusum_thresh = 10
+    cusum_thresh = 200
     meta_dist_num: int = 2
     dist_epsilon = 0.00001
 
@@ -127,8 +127,8 @@ class CPDConfig(BaseModel):
     clusters_queue_size: int = 10000
     median_window_size = 20
 
-    cusum_window_length: int = 3000
-    env_window_delta = 200
+    cusum_window_length: int = 2700 #3000
+    env_window_delta = 500 # change to support small trajectories
     poisson_freq = 100
     freq_multiplier = 1
     poisson_dist: bool = False
@@ -136,10 +136,11 @@ class CPDConfig(BaseModel):
     transition_cusum_eps: float = 0.1
     prior_cusum_eps: float = 0.01
 
+
 class BaseConfig(BaseModel):
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    seed: int = 0
+    seed: int = 1
 
     agent: AgentConfig = AgentConfig()
     cpd: CPDConfig = CPDConfig()

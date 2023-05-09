@@ -32,6 +32,10 @@ def run_agent_and_environment():
     # env.set_task(task=np.array([1.8980728, 5.800347]))
     # env.set_task(task=np.array([0.16308017, 19.30782])) # Good example - solved in 250K steps
     env.set_task(task=np.array([2.16308017, 10.30782])) #
+
+    logger.add_scalar('task/target_velocity', env.get_task()[0], 0)
+    logger.add_scalar('task/wind_friction', env.get_task()[1], 0)
+
     # Agent
     agent = SAC(config=config,
                 num_inputs=env.obs_dim,

@@ -28,6 +28,7 @@ class CPD:
                                                 MarkovDistribution(state_num=self.cpd_config.clusters_num, window_length=self.dist_queue_len)]
 
         self.oldest_transition = None
+        self.cusum_monitoring_sig: bool = True
 
     def update_transition(self, curr_transition: Tuple[int, int], curr_agent_idx: int):
 
@@ -35,12 +36,18 @@ class CPD:
         self.dists[curr_agent_idx].update_transition(curr_transition=curr_transition)
 
         if len(self.window_queue) == self.window_length:
-           n_c, g_k, medians_k = self.windowed_cusum(curr_agent_idx)
+
+            if self.cusum_monitoring_sig:
+                print('Start Cusum Monitoring')
+                self.cusum_monitoring_sig = False
+
+            n_c, g_k, medians_k = self.windowed_cusum(curr_agent_idx)
         else:
             n_c, g_k = None, None
 
         if n_c:
             # print("Change Point Detected!!!")
+            self.cusum_monitoring_sig = True
             self.window_queue.clear()
 
         return n_c, g_k
@@ -63,11 +70,17 @@ class CPD:
             curr_p = max(self.dists[curr_agent_idx].pdf(curr_sample), self.cpd_config.dist_epsilon)
             next_p = max(self.dists[next_agent_idx].pdf(curr_sample), self.cpd_config.dist_epsilon)
 
-            curr_prior = self.dists[curr_agent_idx].transition_mat[curr_sample] / curr_total_count
-            next_prior = self.dists[next_agent_idx].transition_mat[curr_sample] / next_total_count
+            curr_prior = max(self.dists[curr_agent_idx].transition_mat[curr_sample] / curr_total_count, self.config.cpd.prior_cusum_eps)
+            next_prior = max(self.dists[next_agent_idx].transition_mat[curr_sample] / next_total_count, self.config.cpd.prior_cusum_eps)
 
-            if (curr_p <= self.cpd_config.transition_cusum_eps and next_p <= self.cpd_config.transition_cusum_eps) or \
-               (curr_prior < self.config.cpd.prior_cusum_eps and next_prior < self.config.cpd.prior_cusum_eps):
+            curr_p *= curr_prior
+            next_p *= next_prior
+
+            if (curr_prior <= 0.1 and next_prior <= 0.1):
+
+                if g_k:
+                    g_k.append(g_k[-1])
+                    medians_k.append(medians_k[-1])# Pad to keep idx correct
                 continue
 
             s_k.append(math.log(next_p / curr_p))
@@ -83,7 +96,16 @@ class CPD:
             if running_median.median > self.cpd_config.cusum_thresh and not done:
                 n_c = k #S_k.index(min(S_k))
                 done = True
-                # break
+
+        # window_lengths = np.where(np.diff(np.asarray(g_k) > 0))[0]
+        # curr_samples = (window_lengths[:-1] if len(window_lengths) % 2 != 0 else window_lengths).reshape(-1,2)
+        #
+        # max_window = np.max(curr_samples[:, 1] - curr_samples[:, 0])
+        #
+        # if n_c and max_window >= 50:
+        #     return n_c, g_k, medians_k
+        # else:
+        #     return None, g_k, medians_k
 
         return n_c, g_k, medians_k
 
