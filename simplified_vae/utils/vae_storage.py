@@ -32,6 +32,9 @@ class Buffer(object):
         self.next_obs: List = []
         self.dones: List = []
 
+    def __len__(self):
+        return len(self.obs)
+
     def insert(self, obs: np.ndarray,
                      actions: np.ndarray,
                      rewards: np.ndarray,

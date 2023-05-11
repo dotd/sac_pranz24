@@ -4,6 +4,7 @@ from typing import Tuple, List
 from collections import deque
 
 import numpy as np
+import scipy.signal as signal
 
 from simplified_vae.config.config import CPDConfig, BaseConfig
 from simplified_vae.utils.markov_dist import MarkovDistribution
@@ -97,6 +98,16 @@ class CPD:
                 n_c = k #S_k.index(min(S_k))
                 done = True
 
+        peaks_idx, _ = signal.find_peaks(g_k)
+        peaks_vals = [g_k[idx] for idx in peaks_idx]
+        upper_percentile = np.percentile(peaks_vals, 95)
+        thresh_val = 2 * upper_percentile
+
+        if np.any(g_k > np.array(max(thresh_val, 150.0))):
+            return thresh_val, g_k, medians_k
+        else:
+            return None, g_k, medians_k
+
         # window_lengths = np.where(np.diff(np.asarray(g_k) > 0))[0]
         # curr_samples = (window_lengths[:-1] if len(window_lengths) % 2 != 0 else window_lengths).reshape(-1,2)
         #
@@ -107,6 +118,6 @@ class CPD:
         # else:
         #     return None, g_k, medians_k
 
-        return n_c, g_k, medians_k
+        # return n_c, g_k, medians_k
 
 

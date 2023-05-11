@@ -46,13 +46,13 @@ class POCTrainer:
 
         self.rg = np.random.RandomState(seed=self.config.seed)
 
-        self.model, epoch, loss = init_model(config=config,
-                                             obs_dim=self.obs_dim,
-                                             action_dim=self.action_dim)
-
         self.agents = [SAC(config=config,
                            num_inputs=self.obs_dim,
                            action_space=env.action_space) for _ in range(config.agent.agents_num)]
+
+        self.model, epoch, loss = init_model(config=config,
+                                             obs_dim=self.obs_dim,
+                                             action_dim=self.action_dim)
 
         self.cpd = CPD(config=self.config, window_length=int(self.config.cpd.cusum_window_length))
 
@@ -65,7 +65,7 @@ class POCTrainer:
         self.task_1_buffer = Buffer(max_total_steps=config.cpd.max_total_steps,
                                     obs_dim=self.obs_dim, action_dim=self.action_dim)
 
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=config.training.lr)
+        # self.optimizer = torch.optim.Adam(self.model.parameters(), lr=config.training.lr)
 
         self.total_agent_steps: List = [0,0]
         self.total_agent_updates: List = [0, 0]
@@ -139,11 +139,14 @@ class POCTrainer:
         self.cpd.dists[0].init_transitions(labels=labels_0)
         self.cpd.dists[1].init_transitions(labels=labels_1)
 
+        self.agents[0].init_replay_buffer(self.task_0_buffer)
+        self.agents[1].init_replay_buffer(self.task_1_buffer)
+
     def train_model(self):
 
         print(f'Writing Output to : {self.logger.log_dir}')
 
-        self.curr_agent_idx = 0
+        self.curr_agent_idx = 1
         self.env.task_idx = self.curr_agent_idx
 
         episodes_lengths = [[], []]
@@ -202,8 +205,6 @@ class POCTrainer:
 
             if self.total_agent_steps[self.curr_agent_idx] > self.config.agent.num_steps:
                 break
-
-
 
     def test_model(self):
 

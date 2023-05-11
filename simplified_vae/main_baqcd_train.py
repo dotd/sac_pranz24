@@ -91,11 +91,11 @@ def main():
 
     config = BaseConfig(env=FixedToggleHopperWindvelEnvConfig(),
                         model=ModelConfig(checkpoint_path='runs/RNNVAE_Hopper-v3_2023-05-02_15-58-56/model_best.pth.tar'),
-                        agent=AgentConfig(start_steps=1000))
+                        agent=AgentConfig(start_steps=-1))
 
     stationary_config = BaseConfig(env=StationaryHopperWindvelEnvConfig(),
                                    model=ModelConfig(checkpoint_path='runs/RNNVAE_Hopper-v3_2023-05-02_15-58-56/model_best.pth.tar'),
-                                   agent=AgentConfig(start_steps=1000))
+                                   agent=AgentConfig(start_steps=-1))
 
     ### ABS Env ###
     ###############

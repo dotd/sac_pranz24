@@ -8,6 +8,7 @@ from torch.optim import Adam
 from simplified_vae.config.config import BaseConfig
 from simplified_vae.utils.agent_utils import soft_update, hard_update
 from simplified_vae.models.model import GaussianPolicy, QNetwork, DeterministicPolicy
+from simplified_vae.utils.vae_storage import Buffer
 from src.utils.replay_memory import ReplayMemory
 
 
@@ -64,6 +65,17 @@ class SAC(object):
         else:
             _, _, action = self.policy.sample(state)
         return action.detach().cpu().numpy()[0]
+
+    def init_replay_buffer(self, buffer: Buffer):
+
+        for episode_idx in range(len(buffer)):
+            for step_idx in range(len(buffer.obs[episode_idx])):
+
+                self.replay_memory.push(state=buffer.obs[episode_idx][step_idx],
+                                        action=buffer.actions[episode_idx][step_idx],
+                                        reward=buffer.rewards[episode_idx][step_idx].item(),
+                                        next_state=buffer.next_obs[episode_idx][step_idx],
+                                        done=buffer.dones[episode_idx][step_idx].item())
 
     def update_parameters(self, memory, batch_size, updates):
         # Sample a batch from memory

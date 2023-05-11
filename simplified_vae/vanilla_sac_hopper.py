@@ -29,9 +29,9 @@ def run_agent_and_environment():
 
     # Init Env
     env = env_factory(config=config, logger=logger)
-    # env.set_task(task=np.array([1.8980728, 5.800347]))
+    env.set_task(task=np.array([1.8980728, 5.800347]))
     # env.set_task(task=np.array([0.16308017, 19.30782])) # Good example - solved in 250K steps
-    env.set_task(task=np.array([2.16308017, 10.30782])) #
+    # env.set_task(task=np.array([0.8980728, 5.800347])) #
 
     logger.add_scalar('task/target_velocity', env.get_task()[0], 0)
     logger.add_scalar('task/wind_friction', env.get_task()[1], 0)
@@ -97,27 +97,28 @@ def run_agent_and_environment():
                                                                                       round(episode_reward, 2)))
 
         if i_episode % 10 == 0:
-            avg_reward = 0.
-            episodes = 10
-            for _ in range(episodes):
-                state = env.reset()
-                episode_reward = 0
-                done = False
-                while not done:
-                    action = agent.select_action(state, evaluate=True)
-
-                    next_state, reward, done, _ = env.step(action)
-                    episode_reward += reward
-
-                    state = next_state
-                avg_reward += episode_reward
-            avg_reward /= episodes
-
-            logger.add_scalar('avg_reward/test', avg_reward, i_episode)
-
-            print("----------------------------------------")
-            print("Test Episodes: {}, Avg. Reward: {}".format(episodes, round(avg_reward, 2)))
-            print("----------------------------------------")
+            pass
+            # avg_reward = 0.
+            # episodes = 10
+            # for _ in range(episodes):
+            #     state = env.reset()
+            #     episode_reward = 0
+            #     done = False
+            #     while not done:
+            #         action = agent.select_action(state, evaluate=True)
+            #
+            #         next_state, reward, done, _ = env.step(action)
+            #         episode_reward += reward
+            #
+            #         state = next_state
+            #     avg_reward += episode_reward
+            # avg_reward /= episodes
+            #
+            # logger.add_scalar('avg_reward/test', avg_reward, i_episode)
+            #
+            # print("----------------------------------------")
+            # print("Test Episodes: {}, Avg. Reward: {}".format(episodes, round(avg_reward, 2)))
+            # print("----------------------------------------")
 
     env.close()
 
