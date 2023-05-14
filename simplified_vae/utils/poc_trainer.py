@@ -14,10 +14,8 @@ from simplified_vae.env.fixed_toggle_cheetah_windvel_wrapper import FixedToggleC
 from simplified_vae.env.stationary_abs_env import StationaryABSEnv
 from simplified_vae.env.toggle_abs_env import ToggleABSEnv
 from simplified_vae.env.toggle_cheetah_windvel_wrapper import ToggleCheetahWindVelWrapper
-from simplified_vae.utils.clustering_utils import Clusterer
 from simplified_vae.utils.cpd_utils import CPD
-from simplified_vae.utils.env_utils import collect_stationary_trajectories, collect_non_stationary_trajectories, \
-    collect_toggle_trajectories
+from simplified_vae.utils.env_utils import collect_stationary_trajectories
 from simplified_vae.env.stationary_cheetah_windvel_wrapper import StationaryCheetahWindVelWrapper
 from simplified_vae.utils.losses import compute_state_reconstruction_loss, compute_reward_reconstruction_loss, \
     compute_kl_loss
@@ -54,9 +52,7 @@ class POCTrainer:
                                              obs_dim=self.obs_dim,
                                              action_dim=self.action_dim)
 
-        self.cpd = CPD(config=self.config, window_length=int(self.config.cpd.cusum_window_length))
-
-        self.clusterer = Clusterer(config=self.config, rg=self.rg)
+        self.cpd = CPD(config=self.config, window_length=int(self.config.cpd.cusum_window_length), rg=self.rg)
 
         # Init Buffer
         self.task_0_buffer = Buffer(max_total_steps=config.cpd.max_total_steps,
@@ -131,10 +127,10 @@ class POCTrainer:
             else:
                 raise NotImplementedError
 
-        labels_0, labels_1 = self.clusterer.init_clusters(latent_mean_0=latent_mean_0,
-                                                          latent_mean_1=latent_mean_1,
-                                                          lengths_0=lengths_0,
-                                                          lengths_1=lengths_1)
+        labels_0, labels_1 = self.cpd.clusterer.init_clusters(latent_mean_0=latent_mean_0,
+                                                              latent_mean_1=latent_mean_1,
+                                                              lengths_0=lengths_0,
+                                                              lengths_1=lengths_1)
 
         self.cpd.dists[0].init_transitions(labels=labels_0)
         self.cpd.dists[1].init_transitions(labels=labels_1)
@@ -167,27 +163,21 @@ class POCTrainer:
                 action = self.sample_action(agent=curr_agent, obs=obs)
 
                 if len(curr_agent.replay_memory) > self.config.agent.batch_size:
+                    pass
                     self.update_agent(curr_agent)
 
                 next_obs, reward, done, _ = self.env.step(action)  # Step
                 mask = 1 if curr_episode_steps == self.env._max_episode_steps else float(not done)
                 curr_agent.replay_memory.push(obs, action, reward, next_obs, mask)  # Append transition to memory
 
-                hidden_state, curr_label, n_c, g_k = self.update_cpd(obs=obs,
-                                                                     action=action,
-                                                                     reward=reward,
-                                                                     hidden_state=hidden_state,
-                                                                     lengths=[1],
-                                                                     prev_label=prev_label,
-                                                                     episode_steps=curr_episode_steps,
-                                                                     curr_agent_idx=self.curr_agent_idx)
-
-                if n_c:  # change has been detected
-                    self.curr_agent_idx = int(not self.curr_agent_idx)
-                    self.cpd_detect_counter += 1
-                    print(f'Change Point Detected at {self.total_steps}!!!')
-                    # wandb.log({'detected_cpd_step_v1':episode_steps}, step=cpd_detect_counter)
-                    # wandb.log({'detected_cpd_step_v2': episode_steps}, step=episode_steps)
+                hidden_state, curr_label = self.update_cpd(obs=obs,
+                                                           action=action,
+                                                           reward=reward,
+                                                           hidden_state=hidden_state,
+                                                           lengths=[1],
+                                                           prev_label=prev_label,
+                                                           episode_steps=curr_episode_steps,
+                                                           curr_agent_idx=self.curr_agent_idx)
 
                 obs = next_obs
                 prev_label = curr_label
@@ -228,7 +218,7 @@ class POCTrainer:
                                                actions=action,
                                                rewards=np.array([reward]))
 
-            curr_label = self.clusterer.predict(curr_latent_mean)
+            curr_label = self.cpd.clusterer.predict(curr_latent_mean)
             # print(f'curr label = {curr_label}')
             if episode_steps > 0:
                 n_c, g_k = self.cpd.update_transition((prev_label.item(), curr_label.item()))
@@ -326,25 +316,20 @@ class POCTrainer:
                                                   hidden_state=hidden_state,
                                                   lengths=lengths)
 
-        self.clusterer.update_clusters(new_obs=curr_latent_mean)
-        curr_label = self.clusterer.predict(curr_latent_mean.reshape(1,-1))
+        curr_label = self.cpd.clusterer.predict(curr_latent_mean.reshape(1,-1))
 
         if episode_steps > 0:
+            curr_transition = (prev_label.item(), curr_label.item())
+            n_c, g_k = self.cpd.update_transition(curr_transition=curr_transition,
+                                                  curr_agent_idx=curr_agent_idx,
+                                                  curr_latent_mean=curr_latent_mean)
 
-            curr_sample = [prev_label.item(), curr_label.item()]
-            next_agent_idx = int(not curr_agent_idx)
-            curr_p = self.cpd.dists[curr_agent_idx].pdf(curr_sample)
-            next_p = self.cpd.dists[next_agent_idx].pdf(curr_sample)
+            if n_c:  # change has been detected
+                self.curr_agent_idx = int(not self.curr_agent_idx)
+                self.cpd_detect_counter += 1
+                print(f'Change Point Detected at {self.total_steps - (self.config.cpd.cusum_window_length - n_c)}!!!')
 
-            if next_p > curr_p:
-                a = 1
-
-            n_c, g_k = self.cpd.update_transition(curr_transition=(prev_label.item(), curr_label.item()),
-                                                  curr_agent_idx=curr_agent_idx)
-        else:
-            n_c, g_k = None, None
-
-        return hidden_state, curr_label, n_c, g_k
+        return hidden_state, curr_label
 
     def log_reward(self, episode_idx, episode_steps, curr_episode_reward):
 

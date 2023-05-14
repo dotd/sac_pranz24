@@ -115,3 +115,8 @@ class Clusterer:
         sample_count = len(self.online_kmeans_queues[curr_label])
         self.clusters.cluster_centers_[curr_label] += (1.0 / sample_count) * (new_obs - self.clusters.cluster_centers_[curr_label])
 
+    def update_clusters_batch(self, latent_means_vec: List):
+
+        for curr_latent_mean in latent_means_vec:
+            self.update_clusters(curr_latent_mean)
+

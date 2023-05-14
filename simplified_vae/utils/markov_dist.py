@@ -59,6 +59,11 @@ class MarkovDistribution:
 
         return oldest_queue_transition
 
+    def update_transitions(self, curr_transitions: List):
+
+        for curr_transition in curr_transitions:
+            self.update_transition(curr_transition)
+
     @property
     def probability_mat(self):
         return self.transition_mat / self.column_sum_vec
