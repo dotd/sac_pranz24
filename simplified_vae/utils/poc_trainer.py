@@ -18,7 +18,7 @@ from simplified_vae.utils.cpd_utils import CPD
 from simplified_vae.utils.env_utils import collect_stationary_trajectories
 from simplified_vae.env.stationary_cheetah_windvel_wrapper import StationaryCheetahWindVelWrapper
 from simplified_vae.utils.losses import compute_state_reconstruction_loss, compute_reward_reconstruction_loss, \
-    compute_kl_loss
+    compute_kl_loss, compute_kl_loss_with_posterior
 from simplified_vae.utils.model_utils import init_model, all_to_device
 from simplified_vae.utils.vae_storage import Buffer
 from simplified_vae.utils.logging_utils import write_config
@@ -52,6 +52,8 @@ class POCTrainer:
                                              obs_dim=self.obs_dim,
                                              action_dim=self.action_dim)
 
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=config.training.lr)
+
         self.cpd = CPD(config=self.config, window_length=int(self.config.cpd.cusum_window_length), rg=self.rg)
 
         # Init Buffer
@@ -61,7 +63,8 @@ class POCTrainer:
         self.task_1_buffer = Buffer(max_total_steps=config.cpd.max_total_steps,
                                     obs_dim=self.obs_dim, action_dim=self.action_dim)
 
-        # self.optimizer = torch.optim.Adam(self.model.parameters(), lr=config.training.lr)
+        self.vae_buffer = Buffer(max_total_steps=self.config.vae_train_buffer.max_total_steps,
+                                 obs_dim=self.obs_dim, action_dim=self.action_dim)
 
         self.total_agent_steps: List = [0,0]
         self.total_agent_updates: List = [0, 0]
@@ -135,6 +138,7 @@ class POCTrainer:
         self.cpd.dists[0].init_transitions(labels=labels_0)
         self.cpd.dists[1].init_transitions(labels=labels_1)
 
+        # TODO Stabilizes the detection but might affect SAC training
         self.agents[0].init_replay_buffer(self.task_0_buffer)
         self.agents[1].init_replay_buffer(self.task_1_buffer)
 
@@ -157,6 +161,12 @@ class POCTrainer:
 
             obs = self.env.reset()
 
+            all_obs = []
+            all_actions = []
+            all_next_obs = []
+            all_rewards = []
+            all_dones= []
+
             while not done:
 
                 curr_agent = self.agents[self.curr_agent_idx]
@@ -164,10 +174,28 @@ class POCTrainer:
 
                 if len(curr_agent.replay_memory) > self.config.agent.batch_size:
                     pass
-                    self.update_agent(curr_agent)
+                    # self.update_agent(curr_agent)
+
+                if len(self.vae_buffer) > self.config.training.batch_size:
+                    pass
+                    # vae_obs, vae_actions, vae_rewards, vae_next_obs, vae_lengths = self.vae_buffer.sample_batch(batch_size=self.config.training.batch_size)
+                    #
+                    # state_reconstruction_loss, \
+                    # reward_reconstruction_loss, \
+                    # kl_loss = self.update_vae(obs=vae_obs,
+                    #                           actions=vae_actions,
+                    #                           rewards=vae_rewards,
+                    #                           next_obs=vae_next_obs,
+                    #                           lengths=vae_lengths)
+                    #
+                    # self.log_vae_reward(state_reconstruction_loss,
+                    #                     reward_reconstruction_loss,
+                    #                     kl_loss,
+                    #                     self.total_steps)
 
                 next_obs, reward, done, _ = self.env.step(action)  # Step
                 mask = 1 if curr_episode_steps == self.env._max_episode_steps else float(not done)
+
                 curr_agent.replay_memory.push(obs, action, reward, next_obs, mask)  # Append transition to memory
 
                 hidden_state, curr_label = self.update_cpd(obs=obs,
@@ -178,6 +206,12 @@ class POCTrainer:
                                                            prev_label=prev_label,
                                                            episode_steps=curr_episode_steps,
                                                            curr_agent_idx=self.curr_agent_idx)
+
+                all_obs.append(obs)
+                all_actions.append(action)
+                all_next_obs.append(next_obs)
+                all_rewards.append(reward)
+                all_dones.append(done)
 
                 obs = next_obs
                 prev_label = curr_label
@@ -192,6 +226,12 @@ class POCTrainer:
                                     episode_steps=curr_episode_steps,
                                     curr_episode_reward=curr_episode_total_reward)
                     episodes_lengths[self.curr_agent_idx].append(curr_episode_steps)
+
+                    self.vae_buffer.insert(np.asarray(all_obs, dtype=np.float32),
+                                           np.asarray(all_actions, dtype=np.float32),
+                                           np.asarray(all_rewards, dtype=np.float32)[:, np.newaxis],
+                                           np.asarray(all_next_obs, dtype=np.float32),
+                                           np.asarray(all_dones, dtype=np.float32)[:, np.newaxis])
 
             if self.total_agent_steps[self.curr_agent_idx] > self.config.agent.num_steps:
                 break
@@ -274,17 +314,21 @@ class POCTrainer:
                                 hidden_state: torch.Tensor,
                                 lengths: List):
 
+        obs_d, action_d, reward_d = all_to_device(obs,
+                                                  action,
+                                                  np.array([reward]),
+                                                  device=self.config.device)
+
         self.model.eval()
         with torch.no_grad():
-            # perform add_transition and cusum
 
             if self.config.model.type == 'RNNVAE':
                 curr_latent_sample, \
                 curr_latent_mean, \
                 curr_latent_logvar, \
-                curr_output, hidden_state = self.model.encoder(obs=obs,
-                                                               actions=action,
-                                                               rewards=np.array([reward]),
+                curr_output, hidden_state = self.model.encoder(obs=obs_d,
+                                                               actions=action_d,
+                                                               rewards=reward_d,
                                                                hidden_state=hidden_state,
                                                                lengths=lengths)
 
@@ -298,7 +342,7 @@ class POCTrainer:
             else:
                 raise NotImplementedError
 
-        return curr_latent_mean
+        return curr_latent_mean, hidden_state
 
     def update_cpd(self,
                    obs: torch.Tensor,
@@ -310,11 +354,11 @@ class POCTrainer:
                    episode_steps: int,
                    curr_agent_idx: int):
 
-        curr_latent_mean = self.encode_transition(obs=obs,
-                                                  action=action,
-                                                  reward=reward,
-                                                  hidden_state=hidden_state,
-                                                  lengths=lengths)
+        curr_latent_mean, hidden_state = self.encode_transition(obs=obs,
+                                                                action=action,
+                                                                reward=reward,
+                                                                hidden_state=hidden_state,
+                                                                lengths=lengths)
 
         curr_label = self.cpd.clusterer.predict(curr_latent_mean.reshape(1,-1))
 
@@ -331,6 +375,45 @@ class POCTrainer:
 
         return hidden_state, curr_label
 
+    def update_vae(self, obs: torch.Tensor,
+                         actions: torch.Tensor,
+                         rewards: torch.Tensor,
+                         next_obs: torch.Tensor,
+                         lengths: List):
+
+        self.model.train()
+
+        obs_d = obs.to(self.config.device)
+        actions_d = actions.to(self.config.device)
+        rewards_d = rewards.to(self.config.device)
+        next_obs_d = next_obs.to(self.config.device)
+
+        if self.config.model.type == 'RNNVAE':
+            next_obs_preds, rewards_pred, latent_mean, latent_logvar, _, _ = self.model(obs=obs_d, actions=actions_d, rewards=rewards_d, next_obs=next_obs_d, lengths=lengths)
+        elif self.config.model.type == 'VAE':
+            next_obs_preds, rewards_pred, latent_mean, latent_logvar = self.model(obs=obs_d, actions=actions_d, rewards=rewards_d, next_obs=next_obs_d)
+        else:
+            raise NotImplementedError
+
+        # TODO next_obs_preds outputs for the padded parts should be zero
+        state_reconstruction_loss = compute_state_reconstruction_loss(next_obs_preds, next_obs_d)
+        reward_reconstruction_loss = compute_reward_reconstruction_loss(rewards_pred, rewards_d)
+
+        if self.config.training.use_kl_posterior_loss:
+            kl_loss = compute_kl_loss_with_posterior(latent_mean=latent_mean, latent_logvar=latent_logvar)
+        else:
+            kl_loss = compute_kl_loss(latent_mean=latent_mean, latent_logvar=latent_logvar)
+
+        total_loss = self.config.training.state_reconstruction_loss_weight * state_reconstruction_loss + \
+                     self.config.training.reward_reconstruction_loss_weight * reward_reconstruction_loss + \
+                     self.config.training.kl_loss_weight * kl_loss
+
+        self.optimizer.zero_grad()
+        total_loss.backward()
+        self.optimizer.step()
+
+        return state_reconstruction_loss.item(), reward_reconstruction_loss.item(), kl_loss.item()
+
     def log_reward(self, episode_idx, episode_steps, curr_episode_reward):
 
         self.logger.add_scalar(f'reward_{self.curr_agent_idx}/train', curr_episode_reward, self.total_agent_steps[self.curr_agent_idx])
@@ -338,6 +421,21 @@ class POCTrainer:
               f'Total Steps = {self.total_agent_steps}, {self.total_steps} '
               f'Episode Steps = {episode_steps}, Reward = {curr_episode_reward} '
               f'CPD Window Size = {len(self.cpd.window_queue)}')
+
+    def log_vae_reward(self, state_reconstruction_loss:float,
+                             reward_reconstruction_loss: float,
+                             kl_loss: float,
+                             iter_idx: int):
+
+        self.logger.add_scalar(tag='train/state_reconstruction_loss',
+                               scalar_value=state_reconstruction_loss,
+                               global_step=iter_idx)
+        self.logger.add_scalar(tag='train/reward_reconstruction_loss',
+                               scalar_value=reward_reconstruction_loss,
+                               global_step=iter_idx)
+        self.logger.add_scalar(tag='train/kl_loss',
+                               scalar_value=kl_loss,
+                               global_step=iter_idx)
 
     def test_iter(self, obs: torch.Tensor,
                         actions: torch.Tensor,

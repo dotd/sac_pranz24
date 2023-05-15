@@ -118,16 +118,16 @@ class CPDConfig(BaseModel):
 
     alpha_val: float = 0.5
     clusters_num = 5
-    cusum_thresh = 250
+    cusum_thresh = 100
     meta_dist_num: int = 2
     dist_epsilon = 0.00001
 
     max_env_steps: int = 500
     max_total_steps = 20000
-    clusters_queue_size: int = 10000
+    clusters_queue_size: int = 2000
     median_window_size = 20
 
-    cusum_window_length: int = 400 #3000
+    cusum_window_length: int = 1000
     env_window_delta = 500 # change to support small trajectories
     poisson_freq = 100
     freq_multiplier = 1

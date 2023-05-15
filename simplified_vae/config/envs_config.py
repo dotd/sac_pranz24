@@ -68,7 +68,7 @@ class StationarySwimmerWindvelEnvConfig(EnvConfig):
 
     name: str = 'Swimmer-v3'
 
-    max_episode_steps = 1000
+    max_episode_steps = 500
 
     low_target_vel: float = 0.
     high_target_vel: float = 3.
@@ -80,7 +80,7 @@ class ToggleSwimmerWindvelEnvConfig(EnvConfig):
 
     name: str = 'Swimmer-v2'
 
-    max_episode_steps = 1000
+    max_episode_steps = 500
 
     low_target_vel: float = 0.
     high_target_vel: float = 3.
@@ -92,7 +92,7 @@ class FixedToggleSwimmerWindvelEnvConfig(EnvConfig):
 
     name: str = 'Swimmer-v2'
 
-    max_episode_steps = 1000
+    max_episode_steps = 500
 
     low_target_vel: float = 0.
     high_target_vel: float = 3.

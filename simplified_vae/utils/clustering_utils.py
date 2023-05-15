@@ -47,7 +47,7 @@ class Clusterer:
         for i in range(sample_num):
             curr_sample = latent_mean_0_flat[np.newaxis, i]
             curr_cluster_idx = labels_0[i]
-            self.online_kmeans_queues[curr_cluster_idx].extend(curr_sample) # TODO bug in the online kmeans calculation
+            self.online_kmeans_queues[curr_cluster_idx].extend(curr_sample)
 
         sample_num = len(labels_1)
         for i in range(sample_num):

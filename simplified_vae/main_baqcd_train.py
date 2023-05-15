@@ -47,19 +47,6 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__),'/simplif
 
 def main():
 
-    ### Cheetah WindVel VAE ###
-    #######################
-    # model_type = 'VAE'
-    # checkpoint_path = 'runs/VAE_HalfCheetah-v2_2023-04-27_13-32-38/model_best.pth.tar'
-
-    # config = BaseConfig(env=FixedToggleCheetahWindvelEnvConfig(),
-    #                     model=ModelConfig(type=model_type, checkpoint_path=checkpoint_path),
-    #                     agent=AgentConfig(start_steps=-1))
-    #
-    # stationary_config = BaseConfig(env=StationaryCheetahWindvelEnvConfig(),
-    #                                model=ModelConfig(type=model_type, checkpoint_path=checkpoint_path),
-    #                                agent=AgentConfig(start_steps=-1))
-
     ### Cheetah WindVel RNN-VAE ###
     #######################
 

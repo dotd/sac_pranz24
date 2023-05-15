@@ -41,6 +41,7 @@ class CPD:
 
         self.window_queue.append(curr_transition)
         self.latent_means_vec.append(curr_latent_mean)
+        self.clusterer.update_clusters(curr_latent_mean)
 
         if len(self.window_queue) == self.window_length:
 
@@ -56,8 +57,6 @@ class CPD:
             next_agent_idx = int(not curr_agent_idx)
             self.dists[curr_agent_idx].update_transitions(curr_transitions=list(self.window_queue)[:n_c])
             self.dists[next_agent_idx].update_transitions(curr_transitions=list(self.window_queue)[n_c:])
-
-            self.clusterer.update_clusters_batch(latent_means_vec=self.latent_means_vec)
 
             self.cusum_monitoring_sig = True
             self.window_queue.clear()

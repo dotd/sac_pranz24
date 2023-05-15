@@ -31,6 +31,7 @@ def init_model(config: BaseConfig,
         raise NotImplementedError
 
     model, epoch, loss = load_checkpoint(checkpoint_path=config.model.checkpoint_path, model=model, optimizer=None)
+    model = model.to(config.device)
 
     return model, epoch, loss
 
