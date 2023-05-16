@@ -38,8 +38,6 @@ class SAC(object):
 
         self.replay_memory = ReplayMemory(config.agent.replay_size, config.seed)
 
-        self.transition_mat: np.ndarray = np.zeros((self.config.cpd.clusters_num,
-                                                    self.config.cpd.clusters_num))
         if self.policy_type == "Gaussian":
             # Target Entropy = −dim(A) (e.g. , -6 for HalfCheetah-v2) as given in the paper
             if self.automatic_entropy_tuning is True:

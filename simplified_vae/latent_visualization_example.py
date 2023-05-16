@@ -66,8 +66,8 @@ def main():
     model.eval()
     with torch.no_grad():
 
-        obs_0, actions_0, rewards_0, next_obs_0 = test_buffer.sample_section(start_idx=0, end_idx=max_episode_num)
-        obs_1, actions_1, rewards_1, next_obs_1 = test_buffer.sample_section(start_idx=max_episode_num, end_idx=max_episode_num*2)
+        obs_0, actions_0, rewards_0, next_obs_0 = test_buffer.sample_section_padded_seq(start_idx=0, end_idx=max_episode_num)
+        obs_1, actions_1, rewards_1, next_obs_1 = test_buffer.sample_section_padded_seq(start_idx=max_episode_num, end_idx=max_episode_num * 2)
 
         # non-stationary trajectory
         obs_2      = torch.cat([obs_0[:, :max_episode_len // 2, :], obs_1[:, :max_episode_len // 2, :]], dim=1)

@@ -48,13 +48,11 @@ class POCTrainer:
                            num_inputs=self.obs_dim,
                            action_space=env.action_space) for _ in range(config.agent.agents_num)]
 
-        self.model, epoch, loss = init_model(config=config,
-                                             obs_dim=self.obs_dim,
-                                             action_dim=self.action_dim)
-
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=config.training.lr)
-
-        self.cpd = CPD(config=self.config, window_length=int(self.config.cpd.cusum_window_length), rg=self.rg)
+        self.cpd = CPD(config=self.config,
+                       obs_dim=self.obs_dim,
+                       action_dim=self.action_dim,
+                       window_length=int(self.config.cpd.cusum_window_length),
+                       rg=self.rg)
 
         # Init Buffer
         self.task_0_buffer = Buffer(max_total_steps=config.cpd.max_total_steps,
@@ -103,44 +101,24 @@ class POCTrainer:
         obs_0, actions_0, rewards_0, next_obs_0, lengths_0 = self.task_0_buffer.sample_section(start_idx=0, end_idx=len(self.task_0_buffer.obs))
         obs_1, actions_1, rewards_1, next_obs_1, lengths_1 = self.task_1_buffer.sample_section(start_idx=0, end_idx=len(self.task_1_buffer.obs))
 
-        obs_0_d, actions_0_d, rewards_0_d, next_obs_0 = all_to_device(obs_0, actions_0, rewards_0, next_obs_0, device=self.config.device)
-        obs_1_d, actions_1_d, rewards_1_d, next_obs_1 = all_to_device(obs_1, actions_1, rewards_1, next_obs_1, device=self.config.device)
+        obs_0_labels, \
+        obs_1_labels, \
+        actions_0_labels, \
+        actions_1_labels,\
+        next_obs_labels_0,\
+        next_obs_labels_1, = self.cpd.clusterer.init_clusters(obs_0=obs_0,
+                                                              obs_1=obs_1,
+                                                              actions_0=actions_0,
+                                                              actions_1=actions_1,
+                                                              next_obs_0=next_obs_0,
+                                                              next_obs_1=next_obs_1)
 
-        self.model.eval()
-        with torch.no_grad():
-
-            if self.config.model.type == 'RNNVAE':
-                latent_sample_0, latent_mean_0, latent_logvar_0, output_0, hidden_0 = self.model.encoder(obs=obs_0_d,
-                                                                                                         actions=actions_0_d,
-                                                                                                         rewards=rewards_0_d,
-                                                                                                         lengths=lengths_0)
-
-                latent_sample_1, latent_mean_1, latent_logvar_1, output_1, hidden_1 = self.model.encoder(obs=obs_1_d,
-                                                                                                         actions=actions_1_d,
-                                                                                                         rewards=rewards_1_d,
-                                                                                                         lengths=lengths_1)
-            elif self.config.model.type == 'VAE':
-                latent_sample_0, latent_mean_0, latent_logvar_0 = self.model.encoder(obs=obs_0_d,
-                                                                                     actions=actions_0_d,
-                                                                                     rewards=rewards_0_d)
-
-                latent_sample_1, latent_mean_1, latent_logvar_1 = self.model.encoder(obs=obs_1_d,
-                                                                                     actions=actions_1_d,
-                                                                                     rewards=rewards_1_d)
-            else:
-                raise NotImplementedError
-
-        labels_0, labels_1 = self.cpd.clusterer.init_clusters(latent_mean_0=latent_mean_0,
-                                                              latent_mean_1=latent_mean_1,
-                                                              lengths_0=lengths_0,
-                                                              lengths_1=lengths_1)
-
-        self.cpd.dists[0].init_transitions(labels=labels_0)
-        self.cpd.dists[1].init_transitions(labels=labels_1)
+        self.cpd.dists[0].init_transitions(obs_labels=obs_0_labels, actions_labels=actions_0_labels, next_obs_labels=next_obs_labels_0)
+        self.cpd.dists[1].init_transitions(obs_labels=obs_1_labels, actions_labels=actions_1_labels, next_obs_labels=next_obs_labels_1)
 
         # TODO Stabilizes the detection but might affect SAC training
-        self.agents[0].init_replay_buffer(self.task_0_buffer)
-        self.agents[1].init_replay_buffer(self.task_1_buffer)
+        # self.agents[0].init_replay_buffer(self.task_0_buffer)
+        # self.agents[1].init_replay_buffer(self.task_1_buffer)
 
     def train_model(self):
 
@@ -156,8 +134,6 @@ class POCTrainer:
             curr_episode_total_reward = 0
             curr_episode_steps = 0
             done = False
-            prev_label = None
-            hidden_state = None
 
             obs = self.env.reset()
 
@@ -198,14 +174,13 @@ class POCTrainer:
 
                 curr_agent.replay_memory.push(obs, action, reward, next_obs, mask)  # Append transition to memory
 
-                hidden_state, curr_label = self.update_cpd(obs=obs,
-                                                           action=action,
-                                                           reward=reward,
-                                                           hidden_state=hidden_state,
-                                                           lengths=[1],
-                                                           prev_label=prev_label,
-                                                           episode_steps=curr_episode_steps,
-                                                           curr_agent_idx=self.curr_agent_idx)
+                self.update_cpd(obs=obs,
+                                action=action,
+                                reward=reward,
+                                next_obs=next_obs,
+                                lengths=[1],
+                                episode_steps=curr_episode_steps,
+                                curr_agent_idx=self.curr_agent_idx)
 
                 all_obs.append(obs)
                 all_actions.append(action)
@@ -214,7 +189,6 @@ class POCTrainer:
                 all_dones.append(done)
 
                 obs = next_obs
-                prev_label = curr_label
                 curr_episode_total_reward += reward
                 curr_episode_steps += 1
 
@@ -235,44 +209,6 @@ class POCTrainer:
 
             if self.total_agent_steps[self.curr_agent_idx] > self.config.agent.num_steps:
                 break
-
-    def test_model(self):
-
-        episode_steps = 0
-        done = False
-
-        # self.env.set_task(None)
-        obs = self.env.reset()
-        prev_label = None
-
-        while not done:
-
-            action = self.env.action_space.sample()  # Sample random action
-
-            next_obs, reward, done, _ = self.env.step(action)  # Step
-
-            curr_latent_sample, \
-            curr_latent_mean,\
-            curr_latent_logvar, \
-            curr_output_0 = self.model.encoder(obs=obs,
-                                               actions=action,
-                                               rewards=np.array([reward]))
-
-            curr_label = self.cpd.clusterer.predict(curr_latent_mean)
-            # print(f'curr label = {curr_label}')
-            if episode_steps > 0:
-                n_c, g_k = self.cpd.update_transition((prev_label.item(), curr_label.item()))
-                if n_c:
-                    self.add_meta_distribution(self.cpd)
-
-                # curr_cpd_estim = [cpd.update_transition((prev_label, curr_label)) for cpd in self.cpds]
-
-            if episode_steps == 80:
-                a = 1
-            done = done or (episode_steps >= self.config.train_buffer.max_episode_len)
-            obs = next_obs
-            prev_label = curr_label
-            episode_steps += 1
 
     def update_agent(self, curr_agent):
 
@@ -308,72 +244,38 @@ class POCTrainer:
 
         return action
 
-    def encode_transition(self, obs: torch.Tensor,
-                                action: torch.Tensor,
-                                reward: torch.Tensor,
-                                hidden_state: torch.Tensor,
-                                lengths: List):
-
-        obs_d, action_d, reward_d = all_to_device(obs,
-                                                  action,
-                                                  np.array([reward]),
-                                                  device=self.config.device)
-
-        self.model.eval()
-        with torch.no_grad():
-
-            if self.config.model.type == 'RNNVAE':
-                curr_latent_sample, \
-                curr_latent_mean, \
-                curr_latent_logvar, \
-                curr_output, hidden_state = self.model.encoder(obs=obs_d,
-                                                               actions=action_d,
-                                                               rewards=reward_d,
-                                                               hidden_state=hidden_state,
-                                                               lengths=lengths)
-
-            elif self.config.model.type == 'VAE':
-                curr_latent_sample, \
-                curr_latent_mean, \
-                curr_latent_logvar = self.model.encoder(obs=obs,
-                                                        actions=action,
-                                                        rewards=np.array([reward]))
-
-            else:
-                raise NotImplementedError
-
-        return curr_latent_mean, hidden_state
-
     def update_cpd(self,
-                   obs: torch.Tensor,
-                   action: torch.Tensor,
-                   reward: torch.Tensor,
-                   hidden_state: torch.Tensor,
+                   obs: Union[np.ndarray, torch.Tensor],
+                   action: Union[np.ndarray, torch.Tensor],
+                   reward: Union[torch.Tensor, np.ndarray],
+                   next_obs: Union[torch.Tensor, np.ndarray],
                    lengths: List,
-                   prev_label: np.ndarray,
                    episode_steps: int,
                    curr_agent_idx: int):
 
-        curr_latent_mean, hidden_state = self.encode_transition(obs=obs,
-                                                                action=action,
-                                                                reward=reward,
-                                                                hidden_state=hidden_state,
-                                                                lengths=lengths)
+        obs_label, \
+        action_label, \
+        next_obs_label,\
+        embedded_obs, \
+        embedded_action, \
+        embedded_next_obs = self.cpd.clusterer.predict(obs=obs,
+                                                       action=action,
+                                                       reward=reward,
+                                                       next_obs=next_obs,
+                                                       lengths=lengths)
 
-        curr_label = self.cpd.clusterer.predict(curr_latent_mean.reshape(1,-1))
+        curr_transition = (obs_label, action_label, next_obs_label)
+        n_c, g_k = self.cpd.update_transition(embedded_obs=embedded_obs,
+                                              embedded_action=embedded_action,
+                                              curr_transition=curr_transition,
+                                              curr_agent_idx=curr_agent_idx)
 
-        if episode_steps > 0:
-            curr_transition = (prev_label.item(), curr_label.item())
-            n_c, g_k = self.cpd.update_transition(curr_transition=curr_transition,
-                                                  curr_agent_idx=curr_agent_idx,
-                                                  curr_latent_mean=curr_latent_mean)
+        if n_c:  # change has been detected
+            self.curr_agent_idx = int(not self.curr_agent_idx)
+            self.cpd_detect_counter += 1
+            print(f'Change Point Detected at {self.total_steps - (self.config.cpd.cusum_window_length - n_c)}!!!')
 
-            if n_c:  # change has been detected
-                self.curr_agent_idx = int(not self.curr_agent_idx)
-                self.cpd_detect_counter += 1
-                print(f'Change Point Detected at {self.total_steps - (self.config.cpd.cusum_window_length - n_c)}!!!')
-
-        return hidden_state, curr_label
+        return
 
     def update_vae(self, obs: torch.Tensor,
                          actions: torch.Tensor,

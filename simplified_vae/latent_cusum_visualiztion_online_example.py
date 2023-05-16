@@ -104,10 +104,10 @@ def init_stage(env,
 
     model.eval()
     with torch.no_grad():
-        obs_0, actions_0, rewards_0, next_obs_0 = test_buffer.sample_section(start_idx=0,
-                                                                             end_idx=episode_num // 2)
-        obs_1, actions_1, rewards_1, next_obs_1 = test_buffer.sample_section(start_idx=episode_num //2,
-                                                                             end_idx=episode_num)
+        obs_0, actions_0, rewards_0, next_obs_0 = test_buffer.sample_section_padded_seq(start_idx=0,
+                                                                                        end_idx=episode_num // 2)
+        obs_1, actions_1, rewards_1, next_obs_1 = test_buffer.sample_section_padded_seq(start_idx=episode_num // 2,
+                                                                                        end_idx=episode_num)
 
         obs_0_d, actions_0_d, rewards_0_d, next_obs_0_d = all_to_device(obs_0, actions_0, rewards_0, next_obs_0, device=device)
         obs_1_d, actions_1_d, rewards_1_d, next_obs_1_d = all_to_device(obs_1, actions_1, rewards_1, next_obs_1, device=device)

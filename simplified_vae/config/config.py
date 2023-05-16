@@ -117,13 +117,13 @@ class ModelConfig(BaseModel):
 class CPDConfig(BaseModel):
 
     alpha_val: float = 0.5
-    clusters_num = 5
+    clusters_num = [5, 5, 5] # obs, action, next_obs
     cusum_thresh = 100
     meta_dist_num: int = 2
     dist_epsilon = 0.00001
 
     max_env_steps: int = 500
-    max_total_steps = 20000
+    max_total_steps = 1000
     clusters_queue_size: int = 2000
     median_window_size = 20
 

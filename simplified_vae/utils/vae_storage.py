@@ -99,6 +99,26 @@ class Buffer(object):
         sorted_idx = sorted([(idx, self.obs[idx]) for idx in range(start_idx, end_idx)], key=sort_func, reverse=True)
         sorted_idx = [curr[0] for curr in sorted_idx]
 
+        obs = [self.obs[idx] for idx in sorted_idx]
+        actions = [self.actions[idx] for idx in sorted_idx]
+        rewards = [self.rewards[idx] for idx in sorted_idx]
+        next_obs = [self.next_obs[idx] for idx in sorted_idx]
+        lengths = [obs[i].shape[0] for i in range(len(obs))]
+
+        # obs = [torch.from_numpy(self.obs[idx]) for idx in sorted_idx]
+        # actions = [torch.from_numpy(self.actions[idx]) for idx in sorted_idx]
+        # rewards = [torch.from_numpy(self.rewards[idx]) for idx in sorted_idx]
+        # next_obs = [torch.from_numpy(self.next_obs[idx]) for idx in sorted_idx]
+        # lengths = [obs[i].shape[0] for i in range(len(obs))]
+
+        return obs, actions, rewards, next_obs, lengths
+
+    def sample_section_padded_seq(self, start_idx: int, end_idx: int):
+
+        sort_func = lambda x: len(x[1])
+        sorted_idx = sorted([(idx, self.obs[idx]) for idx in range(start_idx, end_idx)], key=sort_func, reverse=True)
+        sorted_idx = [curr[0] for curr in sorted_idx]
+
         obs = [torch.from_numpy(self.obs[idx]) for idx in sorted_idx]
         actions = [torch.from_numpy(self.actions[idx]) for idx in sorted_idx]
         rewards = [torch.from_numpy(self.rewards[idx]) for idx in sorted_idx]

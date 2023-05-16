@@ -109,8 +109,8 @@ def main():
 
     model.eval()
     with torch.no_grad():
-        obs_0, actions_0, rewards_0, next_obs_0, lengths_0 = task_0_buffer.sample_section(start_idx=0, end_idx=len(task_0_buffer.obs))
-        obs_1, actions_1, rewards_1, next_obs_1, lengths_1 = task_1_buffer.sample_section(start_idx=0, end_idx=len(task_1_buffer.obs))
+        obs_0, actions_0, rewards_0, next_obs_0, lengths_0 = task_0_buffer.sample_section_padded_seq(start_idx=0, end_idx=len(task_0_buffer.obs))
+        obs_1, actions_1, rewards_1, next_obs_1, lengths_1 = task_1_buffer.sample_section_padded_seq(start_idx=0, end_idx=len(task_1_buffer.obs))
 
         obs_0_d, actions_0_d, rewards_0_d, next_obs_0_d = all_to_device(obs_0, actions_0, rewards_0, next_obs_0, device=config.device)
         obs_1_d, actions_1_d, rewards_1_d, next_obs_1_d = all_to_device(obs_1, actions_1, rewards_1, next_obs_1, device=config.device)
@@ -162,8 +162,8 @@ def main():
                                         env_change_freq=max_total_steps,
                                         is_print=True)
 
-        obs_0, actions_0, rewards_0, next_obs_0, lengths_0 = task_0_buffer.sample_section(start_idx=0, end_idx=sample_episode_num)
-        obs_1, actions_1, rewards_1, next_obs_1, lengths_1 = task_1_buffer.sample_section(start_idx=0, end_idx=sample_episode_num)
+        obs_0, actions_0, rewards_0, next_obs_0, lengths_0 = task_0_buffer.sample_section_padded_seq(start_idx=0, end_idx=sample_episode_num)
+        obs_1, actions_1, rewards_1, next_obs_1, lengths_1 = task_1_buffer.sample_section_padded_seq(start_idx=0, end_idx=sample_episode_num)
 
         # joint Trajectory
         trajectory_idx = 5

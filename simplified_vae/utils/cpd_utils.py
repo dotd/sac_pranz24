@@ -1,5 +1,5 @@
 import math
-from typing import Tuple, List
+from typing import Tuple, List, Union
 
 from collections import deque
 
@@ -8,8 +8,8 @@ import scipy.signal as signal
 from numpy.random import RandomState
 
 from simplified_vae.config.config import CPDConfig, BaseConfig
-from simplified_vae.utils.clustering_utils import Clusterer
-from simplified_vae.utils.markov_dist import MarkovDistribution
+from simplified_vae.utils.clustering_utils import Clusterer, RandomProjectionClusterer
+from simplified_vae.utils.markov_dist import MarkovDistribution, MarkovDistribution3D
 from simplified_vae.utils.online_median_filter import RunningMedian
 
 
@@ -18,6 +18,8 @@ class CPD:
     def __init__(self,
                  config: BaseConfig,
                  window_length: int,
+                 obs_dim: int,
+                 action_dim: int,
                  rg: RandomState):
 
         self.config: BaseConfig = config
@@ -29,19 +31,27 @@ class CPD:
 
         self.dist_queue_len = self.cpd_config.max_total_steps // 2 - 1
 
-        self.dists: List[MarkovDistribution] = [MarkovDistribution(state_num=self.cpd_config.clusters_num, window_length=self.dist_queue_len),
-                                                MarkovDistribution(state_num=self.cpd_config.clusters_num, window_length=self.dist_queue_len)]
+        self.dists: List[MarkovDistribution3D] = [MarkovDistribution3D(state_num=self.cpd_config.clusters_num, window_length=self.dist_queue_len),
+                                                  MarkovDistribution3D(state_num=self.cpd_config.clusters_num, window_length=self.dist_queue_len)]
 
-        self.clusterer = Clusterer(config=self.config, rg=rg)
+        self.clusterer = RandomProjectionClusterer(config=self.config,
+                                                   obs_dim=obs_dim,
+                                                   action_dim=action_dim,
+                                                   rg=rg)
 
         self.oldest_transition = None
         self.cusum_monitoring_sig: bool = True
 
-    def update_transition(self, curr_transition: Tuple[int, int], curr_latent_mean, curr_agent_idx: int):
+    def update_transition(self, embedded_obs: np.ndarray,
+                                embedded_action: np.ndarray,
+                                curr_transition: Tuple[int, int, int],
+                                curr_agent_idx: int):
 
         self.window_queue.append(curr_transition)
-        self.latent_means_vec.append(curr_latent_mean)
-        self.clusterer.update_clusters(curr_latent_mean)
+        self.clusterer.update_clusters(embedded_obs=embedded_obs,
+                                       embedded_action=embedded_action,
+                                       obs_label=curr_transition[0], # change to named tuple/dataclass
+                                       action_label=curr_transition[1])
 
         if len(self.window_queue) == self.window_length:
 
@@ -82,18 +92,18 @@ class CPD:
             curr_p = max(self.dists[curr_agent_idx].pdf(curr_sample), self.cpd_config.dist_epsilon)
             next_p = max(self.dists[next_agent_idx].pdf(curr_sample), self.cpd_config.dist_epsilon)
 
-            curr_prior = max(self.dists[curr_agent_idx].transition_mat[curr_sample] / curr_total_count, self.config.cpd.prior_cusum_eps)
-            next_prior = max(self.dists[next_agent_idx].transition_mat[curr_sample] / next_total_count, self.config.cpd.prior_cusum_eps)
+            # curr_prior = max(self.dists[curr_agent_idx].transition_mat[curr_sample] / curr_total_count, self.config.cpd.prior_cusum_eps)
+            # next_prior = max(self.dists[next_agent_idx].transition_mat[curr_sample] / next_total_count, self.config.cpd.prior_cusum_eps)
+            #
+            # curr_p *= curr_prior
+            # next_p *= next_prior
 
-            curr_p *= curr_prior
-            next_p *= next_prior
-
-            if curr_prior <= 0.1 and next_prior <= 0.1:
-                if g_k:
-                    g_k.append(g_k[-1])
-                    medians_k.append(medians_k[-1])
-
-                continue
+            # if curr_prior <= 0.1 and next_prior <= 0.1:
+            #     if g_k:
+            #         g_k.append(g_k[-1])
+            #         medians_k.append(medians_k[-1])
+            #
+            #     continue
 
             s_k.append(math.log(next_p / curr_p))
             S_k.append(sum(s_k))
