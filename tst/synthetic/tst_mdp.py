@@ -44,7 +44,7 @@ def tst_switch(num_env=2,
                                  reward_sparsity=reward_sparsity,
                                  rnd=rnd,
                                  contrast=contrast)
-    print(f"MDP is:\n{garnet_switch}\n------")
+    print(f"GARNET Switch MDP:\n{garnet_switch}\n------")
     num_trajectories = 2
     trajectory_length = 100
     trajectories = list()
@@ -52,6 +52,7 @@ def tst_switch(num_env=2,
         state = garnet_switch.reset()
         trajectory = list()
         for t in range(trajectory_length):
+            # Random policy
             action = rnd.choice(garnet_switch.num_actions)
             state_next, reward, done, info = garnet_switch.step(action)
             trajectory.append([state, action, reward, state_next, info["previous"], info["next"]])
