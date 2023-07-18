@@ -55,13 +55,15 @@ class MDPStatsTransition:
                  num_states,
                  num_actions,
                  length):
+        self.num_states = num_states
+        self.length = length
         self.mdp_stats = [MDPStats(num_states, num_actions, length // 2),
                           MDPStats(num_states, num_actions, length // 2)]
 
     def add_sample(self, action, state, state_next):
         sampled_removed = self.mdp_stats[1].add_sample(action, state, state_next)
         if sampled_removed is not None:
-            self.mdp_stats[0].add_sample(sampled_removed)
+            self.mdp_stats[0].add_sample(sampled_removed[0], sampled_removed[1], sampled_removed[2])
 
     def get_mdps(self):
         mdps = [self.mdp_stats[i].get_mdp() for i in range(2)]
@@ -78,6 +80,14 @@ class MDPStatsTransition:
                 loglikelihood = np.log((p1 + eps) / (p0 + eps))
                 loglikelihood_vec.append(loglikelihood)
         return loglikelihood_vec
+
+    def get_corr_signal(self):
+        mdps = self.get_mdps()
+        # delta = np.sum(np.abs(mdps[0] - mdps[1]))
+        s0 = (mdps[0] - 1 / self.num_states).flatten()
+        s1 = (mdps[1] - 1 / self.num_states).flatten()
+        signal = 1 - np.sum(s0 * s1) / np.sqrt(np.sum(s0 * s0) * np.sum(s1 * s1))
+        return signal
 
 
 class SimpleStatsAgent:

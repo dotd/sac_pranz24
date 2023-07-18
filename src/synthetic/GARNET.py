@@ -100,7 +100,7 @@ class GARNETSwitch:
     def step(self, action):
         state_next, reward, done, info = self.mdps[self.current_mdp].step(action)
         info = {"previous": self.current_mdp}
-        switch_mdp_flag = self.random.uniform() <= 1 / self.switch_average_time \
+        switch_mdp_flag = self.random.uniform() <= (1 / self.switch_average_time) \
                           and self.switches_counter < self.maximal_num_switches
         if switch_mdp_flag:
             self.current_mdp = self.random.choice(self.num_env)
