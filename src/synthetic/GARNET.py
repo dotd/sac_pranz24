@@ -10,6 +10,15 @@ class GARNET:
                  reward_sparsity,
                  rnd,
                  contrast):
+        """
+        :param num_states:
+        :param num_actions:
+        :param branching_factor: how many zeros are not zero for each state-action pair.
+        :param reward_sparsity: between 0 to 1, expresses how many rewards are not 0
+        :param rnd:
+        :param contrast: positive number. high contrast makes the rewards close to 0 or 1, while low contrast make
+                it all rewards equal
+        """
         self.num_states = num_states
         self.num_actions = num_actions
         self.branching_factor = branching_factor
@@ -50,7 +59,7 @@ class GARNET:
 
     def __str__(self):
         np.set_printoptions(precision=3, suppress=True)
-        return f"P=\n{str(self.P)}\nR=\n{str(self.R)}"
+        return f"num_states={str(self.num_states)}\nnum_actions={str(self.num_actions)}\nP=\n{str(self.P)}\nR=\n{str(self.R)}"
 
 
 class GARNETSwitch:

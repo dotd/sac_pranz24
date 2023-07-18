@@ -1,6 +1,6 @@
 import numpy as np
-from src.synthetic.mdp import GARNETSwitch
-from src.synthetic.simple_stats_agent import SimpleStatsTransition
+from src.synthetic.GARNET import GARNETSwitch
+from src.synthetic.simple_stats_agent import MDPStatsTransition
 
 
 def tst_agent(num_env=2,
@@ -31,7 +31,7 @@ def tst_agent(num_env=2,
         state = garnet_switch.reset()
         trajectory = list()
 
-        simple_stats_transition = SimpleStatsTransition(
+        simple_stats_transition = MDPStatsTransition(
             num_states=num_states,
             num_actions=num_actions,
             length=cusum_length)
