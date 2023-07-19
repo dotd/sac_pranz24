@@ -1,9 +1,9 @@
 import numpy as np
 import datetime
+from torch.utils.tensorboard import SummaryWriter
 
 from src.synthetic.GARNET import GARNETSwitch
 from src.synthetic.simple_stats_agent import MDPStatsTransition
-from torch.utils.tensorboard import SummaryWriter
 from definitions import ROOT_DIR
 
 
