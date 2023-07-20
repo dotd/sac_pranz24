@@ -13,6 +13,7 @@ def tst_GARNETContinous():
     env = GARNETContinuous(states_dim=state_dim, actions_dim=actions_dim, dt=0.01, rnd=rnd)
     x = env.reset()
     for t in range(10000):
+        # Choosing a random action (or control)
         u = rnd.randn(actions_dim, 1)
         x_next, r, done, info = env.step(u)
         x_dict = dict((str(x), y) for x, y in enumerate(x_next.flatten(), 1))

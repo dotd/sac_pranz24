@@ -53,7 +53,6 @@ def tst2():
     writer.flush()
 
 
-
 if __name__ == "__main__":
     # tst1()
     # tst2()

@@ -38,4 +38,56 @@ class GARNETContinuous:
 
     def __str__(self):
         np.set_printoptions(precision=3, suppress=True)
-        return f"states_dim={str(self.states_dim)}\nactions_dim={str(self.actions_dim)}\nA=\n{str(self.P)}\nB=\n{str(self.B)}"
+        return f"states_dim={str(self.states_dim)}\nactions_dim={str(self.actions_dim)}\nA=\n{str(self.A)}\nB=\n{str(self.B)}"
+
+
+class GARNETContinuousSwitch:
+
+    def __init__(self,
+                 num_env,
+                 switch_average_time,
+                 maximal_num_switches,
+                 states_dim,
+                 actions_dim,
+                 dt,
+                 rnd):
+        self.num_env = num_env
+        self.switch_average_time = switch_average_time
+        self.maximal_num_switches = maximal_num_switches
+        self.switches_counter = 0
+        self.states_dim = states_dim
+        self.actions_dim = actions_dim
+        self.dt = dt
+        self.random = rnd
+        self.mdps = list()
+        for k in range(self.num_env):
+            self.mdps.append(GARNETContinuous(states_dim=states_dim,
+                                              actions_dim=actions_dim,
+                                              dt=dt,
+                                              rnd=rnd))
+        self.current_mdp = None
+        self.x = None
+
+    def reset(self, mdp_start=None, x=None):
+        self.current_mdp = mdp_start if mdp_start is not None else self.random.choice(self.num_env)
+        self.x = self.mdps[self.current_mdp].reset(x)
+        return self.x
+
+    def step(self, action):
+        x_next, reward, done, info = self.mdps[self.current_mdp].step(action)
+        info = {"previous": self.current_mdp}
+        switch_mdp_flag = self.random.uniform() <= (1 / self.switch_average_time) \
+                          and self.switches_counter < self.maximal_num_switches
+        if switch_mdp_flag:
+            self.current_mdp = self.random.choice(self.num_env)
+            self.mdps[self.current_mdp].reset(x_next)
+            self.switches_counter += 1
+        info["next"] = self.current_mdp
+        self.x = self.mdps[self.current_mdp].x
+        return self.x, reward, None, info
+
+    def __str__(self):
+        s = list()
+        for k in range(self.num_env):
+            s.append(f"MDP no. {k}\n{self.mdps[k].__str__()}")
+        return "\n".join(s)
