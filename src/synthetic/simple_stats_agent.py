@@ -2,7 +2,7 @@ import numpy as np
 from collections import deque
 
 eps = np.finfo(float).eps
-
+eps2 = np.nextafter(0,1)
 
 class MDPStats:
     """
@@ -86,7 +86,7 @@ class MDPStatsTransition:
         # delta = np.sum(np.abs(mdps[0] - mdps[1]))
         s0 = (mdps[0] - 1 / self.num_states).flatten()
         s1 = (mdps[1] - 1 / self.num_states).flatten()
-        signal = 1 - np.sum(s0 * s1) / np.sqrt(np.sum(s0 * s0) * np.sum(s1 * s1))
+        signal = 1 - np.sum(s0 * s1) / np.sqrt(np.sum(s0 * s0) * np.sum(s1 * s1) + eps2)
         return signal
 
 
@@ -107,3 +107,14 @@ class SimpleStatsAgent:
     def add_sample(self, sample):
         self.total_samples += 1
         self.simple_stats_transition.add_sample(sample)
+
+
+def process_stats(stats_precision_recall):
+    counter_true = 0
+    last_true = None
+    counter_false = 0
+    last_false = None
+
+    for stats in stats_precision_recall:
+        pass
+

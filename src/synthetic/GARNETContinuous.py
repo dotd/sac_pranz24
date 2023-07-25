@@ -83,6 +83,7 @@ class GARNETContinuousSwitch:
             self.mdps[self.current_mdp].reset(x_next)
             self.switches_counter += 1
         info["next"] = self.current_mdp
+        info["switch"] = info["next"] != info["previous"]
         self.x = self.mdps[self.current_mdp].x
         return self.x, reward, None, info
 
