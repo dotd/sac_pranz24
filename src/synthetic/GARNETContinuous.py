@@ -22,7 +22,7 @@ class GARNETContinuous:
         self.A = self.random.randn(self.states_dim, self.states_dim)
         eigenvalues, _ = np.linalg.eig(self.A)
         normalization_factor = np.amax(np.real(eigenvalues))
-        self.A = self.A - normalization_factor * np.eye(self.states_dim)
+        self.A = self.A - normalization_factor* 1.01 * np.eye(self.states_dim)
         self.B = self.random.randn(self.states_dim, self.actions_dim)
 
     def reset(self, state=None):

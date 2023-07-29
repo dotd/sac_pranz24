@@ -2,7 +2,8 @@ import numpy as np
 from collections import deque
 
 eps = np.finfo(float).eps
-eps2 = np.nextafter(0,1)
+eps2 = np.nextafter(0, 1)
+
 
 class MDPStats:
     """
@@ -69,6 +70,19 @@ class MDPStatsTransition:
         mdps = [self.mdp_stats[i].get_mdp() for i in range(2)]
         return mdps
 
+    def get_stats(self):
+        stats = [self.mdp_stats[i].stats for i in range(2)]
+        return stats
+
+    def get_stats_mdps(self):
+        stats = self.get_stats()
+        res = dict()
+        for i, stat in enumerate(stats):
+            res[f"stat{i}"] = np.count_nonzero(stat)
+            res[f"size{i}"] = np.size(stat)
+            res[f"stat_perc{i}"] = res[f"stat{i}"] / res[f"size{i}"]
+        return res
+
     def get_log_likelihood(self, eps=0.01):
         mdps = self.get_mdps()
         loglikelihood_vec = list()
@@ -110,11 +124,21 @@ class SimpleStatsAgent:
 
 
 def process_stats(stats_precision_recall):
-    counter_true = 0
-    last_true = None
-    counter_false = 0
-    last_false = None
+    last_true_time = None
+    vec_delays_after_true = list()
+    vec_delays_tmp = None
 
-    for stats in stats_precision_recall:
-        pass
+    for idx, stats in enumerate(stats_precision_recall):
+        typ = stats[0]
+        time = stats[1]
 
+        if typ is False and vec_delays_tmp is not None:
+            vec_delays_tmp.append([last_true_time, time, time - last_true_time])
+
+        if typ or idx == len(stats_precision_recall) - 1:
+            # zeroizing true
+            if last_true_time is not None:
+                vec_delays_after_true.append(vec_delays_tmp)
+            last_true_time = time
+            vec_delays_tmp = list()
+    return vec_delays_after_true
