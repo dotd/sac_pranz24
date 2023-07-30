@@ -38,7 +38,7 @@ def create_dataset(dataset, lookback):
     return torch.tensor(np.array(X)), torch.tensor(np.array(y))
 
 
-lookback = 1
+lookback = 2
 X_train, y_train = create_dataset(train, lookback=lookback)
 X_test, y_test = create_dataset(test, lookback=lookback)
 print(f"X_train.shape={X_train.shape}, y_train.shape={y_train.shape}")
@@ -71,10 +71,11 @@ for epoch in range(n_epochs):
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
+    if epoch == 0:
+        print(f"X_batch={X_batch.shape} y_batch={y_batch.shape}")
 
     # Validation
     if epoch % 100 == 0:
-        print(f"X_batch={X_batch.shape} y_batch={y_batch.shape}")
         model.eval()
         with torch.no_grad():
             y_pred = model(X_train)
@@ -82,7 +83,6 @@ for epoch in range(n_epochs):
             y_pred = model(X_test)
             test_rmse = np.sqrt(loss_fn(y_pred, y_test))
         print("Epoch %d: train RMSE %.4f, test RMSE %.4f" % (epoch, train_rmse, test_rmse))
-
 
 with torch.no_grad():
     # shift train predictions for plotting
@@ -92,7 +92,7 @@ with torch.no_grad():
     train_plot[lookback:train_size] = model(X_train)[:, -1, :]
     # shift test predictions for plotting
     test_plot = np.ones_like(timeseries) * np.nan
-    test_plot[train_size+lookback:len(timeseries)] = model(X_test)[:, -1, :]
+    test_plot[train_size + lookback:len(timeseries)] = model(X_test)[:, -1, :]
 # plot
 plt.plot(timeseries, c='b')
 plt.plot(train_plot, c='r')
