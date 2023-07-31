@@ -1,4 +1,5 @@
 import math
+from collections import deque
 import torch
 
 
@@ -30,3 +31,14 @@ def soft_update(target, source, tau):
 def hard_update(target, source):
     for target_param, param in zip(target.parameters(), source.parameters()):
         target_param.data.copy_(param.data)
+
+
+class SmoothSimple:
+
+    def __init__(self, alpha):
+        self.alpha = alpha
+        self.prev_value = 0
+
+    def add_samples(self, sample):
+        self.prev_value = self.prev_value * (1 - self.alpha) + self.alpha * sample
+        return self.prev_value
